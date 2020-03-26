@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.3.61"
+    kotlin("jvm") version "1.3.71"
     id("org.jetbrains.dokka") version "0.10.0"
     application
     jacoco
@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "net.bms.orwell"
-version = "1.0-SNAPSHOT"
+version = "0.1.0"
 
 repositories {
     mavenCentral()
@@ -33,6 +33,19 @@ dependencies {
 }
 
 tasks {
+    named("run", JavaExec::class) {
+        this.standardInput = System.`in`
+    }
+    jar {
+        manifest{
+            attributes["Implementation-Title"] = project.name
+            attributes["Implementation-Version"] = project.version
+            attributes["Main-Class"] = application.mainClassName
+        }
+        from(configurations.compile.get().map {
+            if (it.isDirectory) it else zipTree(it)
+        })
+    }
     compileKotlin {
         kotlinOptions.jvmTarget = "1.8"
         dependsOn("generateGrammarSource")
@@ -51,6 +64,9 @@ tasks {
     register("dokkaMarkdown", org.jetbrains.dokka.gradle.DokkaTask::class) {
         outputFormat = "gfm"
         outputDirectory = "$buildDir/dokka/gfm"
+    }
+    processResources {
+        filter{ it.replace("%VERSION%", project.version.toString()) }
     }
 }
 

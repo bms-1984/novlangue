@@ -1,7 +1,8 @@
 grammar Orwell;
 expr: PAREN_L expr PAREN_R | expr BINOP expr | NUM | fun_dec;
 fun_dec: FUN_KEYWORD ID PAREN_L param_list PAREN_R | FUN_KEYWORD ID;
-param_list: ID COLON TYPE COMMA param_list | ID COLON TYPE;
+param_list: id_type COMMA param_list | id_type | ;
+id_type: ID COLON TYPE;
 BINOP: '+' | '-' | '*' | '/' | '%' ;
 NUM: INT | FLOAT;
 INT: DIGIT+;
