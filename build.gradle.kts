@@ -60,6 +60,8 @@ tasks {
     }
     generateGrammarSource {
         outputDirectory = File("$buildDir/generated-src/antlr/main/java")
+        arguments.add("-visitor")
+        arguments.add("-no-listener")
     }
     register("dokkaMarkdown", org.jetbrains.dokka.gradle.DokkaTask::class) {
         outputFormat = "gfm"

@@ -2,13 +2,15 @@ package net.bms.orwell
 
 import OrwellLexer
 import OrwellParser
-import net.bms.orwell.tree.AST
-import net.bms.orwell.tree.ASTValue
-import net.bms.orwell.tree.OrwellListener
+import net.bms.orwell.tree.ASTVisitor
+import net.bms.orwell.tree.Node
+import net.bms.orwell.tree.OrwellVisitor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import org.antlr.v4.runtime.tree.ParseTreeWalker
 import java.util.*
+import kotlin.collections.HashMap
+
+val valStore = HashMap<String, Pair<Any?, String?>>()
 
 fun main() {
     val properties = Properties()
@@ -31,23 +33,20 @@ fun main() {
                 break
             }
         }
-//        val lexer = OrwellLexer(CharStreams.fromString(line))
-//        val tokenStream = CommonTokenStream(lexer)
-//        val parser = OrwellParser(tokenStream)
-//        val ast = AST()
-//        val listener = OrwellListener(ast)
-        continue
-    }
-}
+        val lexer = OrwellLexer(CharStreams.fromString(line))
+        val tokenStream = CommonTokenStream(lexer)
+        val parser = OrwellParser(tokenStream)
+        val tree = parser.top()
+        var astree: Node?
 
-/**
- * Prints every [ASTValue] of an [AST] and its descendants, albeit confusingly
- *
- * @author Ben M. Sutter
- * @since 0.1.0
- * @param[ast] the tree that should be printed
- */
-fun printAST(ast: AST) {
-    println("NODE\nvalue: ${ast.value.getValue()}\nline: ${ast.value.getLine()}\n")
-    ast.children.forEach { printAST(it) }
+        if (tree is OrwellParser.ExprContext) {
+            astree = OrwellVisitor.visitExpr(tree)
+            println("\t$line -> ${ASTVisitor.visit(astree)}")
+        }
+        else if (tree is OrwellParser.StatContext) {
+            astree = OrwellVisitor.visitStat(tree)
+            ASTVisitor.visit(astree)
+        }
+
+    }
 }
