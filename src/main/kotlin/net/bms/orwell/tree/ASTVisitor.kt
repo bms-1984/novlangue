@@ -1,5 +1,7 @@
 package net.bms.orwell.tree
 
+import net.bms.orwell.OrwellFunction
+import net.bms.orwell.funStore
 import net.bms.orwell.valStore
 
 object ASTVisitor {
@@ -11,6 +13,8 @@ object ASTVisitor {
         is NegateNode -> visit(node)
         is NumberNode -> visit(node)
         is ValNode -> visit(node)
+        is FunCallNode -> visit(node)
+        is FunDefNode -> visit(node)
         else -> Double.NaN
     }
 
@@ -25,11 +29,22 @@ object ASTVisitor {
             if (node.value != null) {
                 visit(node.value)
             } else null
-        var type = node.type
-        if (valStore.containsKey(node.id))
-            type = valStore[node.id]!!.second
-        valStore[node.id] = Pair(value, type)
-        println ("\t${node.id}: ${valStore[node.id]!!.second} = ${valStore[node.id]!!.first}")
+        valStore[node.id] = value
+        println ("\t${node.id} -> ${valStore[node.id]}")
+        return visit(node.value)
+    }
+    fun visitWithNoSideEffects(node: ValNode): Double {
+        return visit(node.value)
+    }
+    private fun visit(node: FunCallNode): Double {
+        if (funStore.containsKey(node.`fun`)) {
+            val retNode = funStore[node.`fun`]?.runFunction(node.args)
+            return visit(retNode)
+        }
+        return Double.NaN
+    }
+    private fun visit(node: FunDefNode): Double {
+        funStore[node.`fun`] = OrwellFunction(node.arg, node.expr)
         return Double.NaN
     }
 }

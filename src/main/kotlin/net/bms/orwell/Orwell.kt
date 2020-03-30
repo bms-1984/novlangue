@@ -10,7 +10,8 @@ import org.antlr.v4.runtime.CommonTokenStream
 import java.util.*
 import kotlin.collections.HashMap
 
-val valStore = HashMap<String, Pair<Any?, String?>>()
+val valStore = HashMap<String, Any?>()
+val funStore = HashMap<String, OrwellFunction>()
 
 fun main() {
     val properties = Properties()
@@ -27,24 +28,56 @@ fun main() {
                 println("Commands:")
                 println(";help -- prints this help dialogue")
                 println(";quit -- exits the REPL")
+                println(";list -- lists current bindings")
                 continue
             }
             if (line.toLowerCase().contains("quit")) {
                 break
+            }
+            if (line.toLowerCase().contains("list"))
+            {
+                if (valStore.isEmpty()) {
+                    println("No variables have been bound.\n")
+                }
+                else {
+                    println("Variables:")
+                    for (k in valStore.keys)
+                        println("$k -> ${valStore[k]}")
+                    println()
+                }
+                if (funStore.isEmpty()) {
+                    println("No functions have been bound.")
+                }
+                else {
+                    println("Functions:")
+                    for (k in funStore.keys) {
+                        print("$k(")
+                        val f = funStore[k]
+                        for (a in 0 until f!!.getArgCount()) {
+                            if (a == f.getArgCount() - 1)
+                                print("${f.getArgN(a)?.id}")
+                            else
+                                print("${f.getArgN(a)?.id}, ")
+                        }
+                        println(")")
+                    }
+                }
+                continue
             }
         }
         val lexer = OrwellLexer(CharStreams.fromString(line))
         val tokenStream = CommonTokenStream(lexer)
         val parser = OrwellParser(tokenStream)
         val tree = parser.top()
+        val visitor = OrwellVisitor()
         var astree: Node?
 
         if (tree is OrwellParser.ExprContext) {
-            astree = OrwellVisitor.visitExpr(tree)
+            astree = visitor.visitExpr(tree)
             println("\t$line -> ${ASTVisitor.visit(astree)}")
         }
         else if (tree is OrwellParser.StatContext) {
-            astree = OrwellVisitor.visitStat(tree)
+            astree = visitor.visitStat(tree)
             ASTVisitor.visit(astree)
         }
 

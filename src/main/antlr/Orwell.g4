@@ -15,10 +15,9 @@ e:
     | val=NUM #Number
     | name=ID #Identifier
     | fun_call #FunCall;
-fun_def: 'fun' name=ID ('(' param_list? ')')?;
-fun_call: name=ID(('('param_list?')')+ | '?');
-param_list: names+=ID ':' types+='double' (',' names+=ID ':' types+='double')*;
-val_dec: 'val' name=ID ':' type='double';
+fun_def: 'fun' name=ID '(' (names+=ID (',' names+=ID)*)? ')'  '{' e '}';
+fun_call: name=ID '(' (args+=e (',' args+=e)*)? ')';
+val_dec: 'val' name=ID;
 val_def: name=val_dec '=' val=e;
 assignment: name=ID '=' val=e;
 

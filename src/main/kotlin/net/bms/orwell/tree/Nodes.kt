@@ -1,9 +1,13 @@
 package net.bms.orwell.tree
 
-import jdk.nashorn.internal.parser.Token
-import java.util.function.Function
-
-abstract class Node
+abstract class Node {
+    fun toValNode(): ValNode {
+        val node = ValNode()
+        node.id = ""
+        node.value = this
+        return node
+    }
+}
 
 abstract class InfixExpressionNode : Node()
 {
@@ -40,10 +44,17 @@ class NegateNode : Node()
     lateinit var innerNode: Node
 }
 
+class FunDefNode: Node()
+{
+    lateinit var `fun`: String
+    var arg = ArrayList<ValNode>()
+    lateinit var expr: OrwellParser.EContext
+}
+
 class FunCallNode : Node()
 {
-    lateinit var func: Function<Double, Double>
-    lateinit var arg: Node
+    lateinit var `fun`: String
+    var args = ArrayList<ValNode>()
 }
 
 class NumberNode : Node()
@@ -54,6 +65,5 @@ class NumberNode : Node()
 class ValNode: Node() {
     lateinit var id: String
     var value: Node? = null
-    var type: String? = null
 }
 
