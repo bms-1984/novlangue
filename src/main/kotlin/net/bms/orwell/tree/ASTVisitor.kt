@@ -24,25 +24,19 @@ object ASTVisitor {
     private fun visit(node: DivisionNode): Double = visit(node.left) / visit(node.right)
     private fun visit(node: NegateNode): Double = -visit(node.innerNode)
     private fun visit(node: NumberNode): Double = node.value
-    private fun visit(node: ValNode): Double {
-        val value: Any? =
-            if (node.value != null) {
-                visit(node.value)
-            } else null
-        valStore[node.id] = value
-        println ("\t${node.id} -> ${valStore[node.id]}")
-        return visit(node.value)
-    }
-    fun visitWithNoSideEffects(node: ValNode): Double {
-        return visit(node.value)
-    }
-    private fun visit(node: FunCallNode): Double {
-        if (funStore.containsKey(node.`fun`)) {
-            val retNode = funStore[node.`fun`]?.runFunction(node.args)
-            return visit(retNode)
+    private fun visit(node: ValNode): Double =
+        (if (node.value != null) visit(node.value) else null).let {
+            valStore[node.id] = it
+            println ("\t${node.id} -> ${valStore[node.id]}")
+            visit(node.value)
         }
-        return Double.NaN
-    }
+    fun visitWithNoSideEffects(node: ValNode): Double = visit(node.value)
+    private fun visit(node: FunCallNode): Double =
+        if (node.`fun` in funStore)
+            (funStore[node.`fun`]?.runFunction(node.args)).let {
+                visit(it)
+            }
+        else Double.NaN
     private fun visit(node: FunDefNode): Double {
         funStore[node.`fun`] = OrwellFunction(node.arg, node.expr)
         return Double.NaN

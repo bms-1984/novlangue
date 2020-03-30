@@ -17,46 +17,52 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
 
     override fun visitVal_def(ctx: OrwellParser.Val_defContext?): Node? =
         if (ctx != null) {
-            val node = ValNode()
-            val dec = visit(ctx.name) as ValNode
-            node.id = dec.id
-            node.value = visit(ctx.`val`)
-            node
+            with(ValNode()) {
+                (visit(ctx.name) as ValNode).let {
+                    id = it.id
+                    value = visit(ctx.`val`)
+                    this
+                }
+            }
         } else null
 
     override fun visitVal_dec(ctx: OrwellParser.Val_decContext?): Node? =
         if (ctx != null) {
-            val node = ValNode()
-            node.id = ctx.name.text
-            node.value = null
-            node
+            with(ValNode()) {
+                id = ctx.name.text
+                value = null
+                this
+            }
         } else null
 
     override fun visitAssignment(ctx: OrwellParser.AssignmentContext?): Node? =
         if (ctx != null) {
-            val node = ValNode()
-            node.id = ctx.name.text
-            node.value = visit(ctx.`val`)
-            node
+            with(ValNode()) {
+                id = ctx.name.text
+                value = visit(ctx.`val`)
+                this
+            }
         } else null
 
     override fun visitNumber(ctx: OrwellParser.NumberContext?): Node? =
         if (ctx != null) {
-            val node = NumberNode()
-            node.value = ctx.`val`.text.toDouble()
-            node
+            with(NumberNode()){
+                value = ctx.`val`.text.toDouble()
+                this
+            }
         } else null
 
     override fun visitNegExpr(ctx: OrwellParser.NegExprContext?): Node? =
         if (ctx != null) {
-            val node = NegateNode()
-            node.innerNode = visit(ctx.e())
-            node
+            with(NegateNode()) {
+                innerNode = visit(ctx.e())
+                this
+            }
         } else null
 
     override fun visitBinExpr(ctx: OrwellParser.BinExprContext?): Node? =
         if (ctx != null) {
-            val node = when (ctx.op.type) {
+            with(when (ctx.op.type) {
                 OrwellLexer.OP_ADD -> {
                     AdditionNode()
                 }
@@ -70,12 +76,13 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
                     MultiplicationNode()
                 }
                 else -> null
+            }) {
+                if (this != null) {
+                    left = visit(ctx.left)
+                    right = visit(ctx.right)
+                    this
+                } else null
             }
-            if (node != null) {
-                node.left = visit(ctx.left)
-                node.right = visit(ctx.right)
-                node
-            } else null
         } else null
 
     override fun visitParenExpr(ctx: OrwellParser.ParenExprContext?): Node? =
@@ -85,42 +92,43 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
 
     override fun visitIdentifier(ctx: OrwellParser.IdentifierContext?): Node? =
         if(ctx != null) {
-            val node: Node
-            if (valStore.containsKey(ctx.name.text))  {
-                val value = valStore[ctx.name.text]
-                node = NumberNode()
-                node.value = value as Double
-                node
-            }
-            else {
-                println("\tERROR: The variable ${ctx.name.text} does not exist.")
-                node = NumberNode()
-                node.value = Double.NaN
-                node
+            with(NumberNode()) {
+                if (ctx.name.text in valStore)  {
+                    value = valStore[ctx.name.text] as Double
+                    this
+                }
+                else {
+                    println("\tERROR: The variable ${ctx.name.text} does not exist.")
+                    value = Double.NaN
+                    this
+                }
             }
         } else null
 
     override fun visitFun_def(ctx: OrwellParser.Fun_defContext?): Node? =
         if (ctx != null) {
-            val node = FunDefNode()
-            for (i in 0 until ctx.names.size) {
-                val arg = ValNode()
-                arg.value = null
-                arg.id = ctx.names[i].text
-                node.arg.add(arg)
+            with(FunDefNode()) {
+                for (i in 0 until ctx.names.size) {
+                    ValNode().let {
+                        it.value = null
+                        it.id = ctx.names[i].text
+                        this.arg.add(it)
+                    }
+                }
+                `fun` = ctx.name.text
+                expr = ctx.e()
+                this
             }
-            node.`fun` = ctx.name.text
-            node.expr = ctx.e()
-            node
         } else null
 
     override fun visitFun_call(ctx: OrwellParser.Fun_callContext?): Node? =
         if (ctx != null) {
-            val node = FunCallNode()
-            for (e in ctx.args) {
-                visit(e)?.let { node.args.add(it.toValNode()) }
+            with(FunCallNode()) {
+                for (e in ctx.args) {
+                    args.add(visit(e).toValNode())
+                }
+                `fun` = ctx.name.text
+                this
             }
-            node.`fun` = ctx.name.text
-            node
         } else null
 }
