@@ -65,5 +65,6 @@ class NumberNode : Node()
 class ValNode: Node() {
     lateinit var id: String
     var value: Node? = null
+    var isNew = false
 }
 

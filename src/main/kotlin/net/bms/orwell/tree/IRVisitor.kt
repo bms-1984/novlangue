@@ -46,15 +46,22 @@ class IRVisitor(private val func: FunctionBuilder) {
     private fun visit(node: ValNode): Value {
         if (node.id.isEmpty())
             return visit(node.value)
-        else if (node.value != null) {
-            if (valStore.containsKey(node.id)) {
-                println("\tERROR: Variable ${node.id} already exists.")
+        else if (node.value != null && node.isNew) {
+            if (valStore.containsKey(node.id))
+                println("\tWARNING: Variable ${node.id} already exists. You should not use `val` here.")
+            valStore[node.id] = visit(node.value)
+            // module.floatGlobalVariable(node.id, value = (valStore[node.id]!! as FloatConst).value)
+            return valStore[node.id]!!
+        }
+        else if (node.value != null && !node.isNew) {
+            if (!valStore.containsKey(node.id)) {
+                println("\tERROR: The variable ${node.id} does not exist. Try using `val`.")
                 return Null(VoidType)
             }
             valStore[node.id] = visit(node.value)
-            module.floatGlobalVariable(node.id, value = (valStore[node.id]!! as FloatConst).value)
             return valStore[node.id]!!
-        } else if (func.name in valStoreFun && node.id in valStoreFun[func.name]!!)
+        }
+        else if (func.name in valStoreFun && node.id in valStoreFun[func.name]!!)
             return valStoreFun[func.name]?.get(node.id)!!
         else if (node.id in valStore)
             return valStore[node.id]!!

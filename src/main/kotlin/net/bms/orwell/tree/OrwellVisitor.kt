@@ -20,6 +20,7 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
                 (visit(ctx.name) as ValNode).let {
                     id = it.id
                     value = visit(ctx.`val`)
+                    isNew = true
                     this
                 }
             }
@@ -30,6 +31,7 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
             with(ValNode()) {
                 id = ctx.name.text
                 value = null
+                isNew = true
                 this
             }
         } else null
