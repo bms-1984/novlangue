@@ -45,7 +45,7 @@ fun main(args: Array<String>) {
             return
         }
         catch (e: FileNotFoundException) {
-            println("ERROR: $e; dropping into a REPL...")
+           println("ERROR: $e; dropping into a REPL...")
         }
     }
     else {
