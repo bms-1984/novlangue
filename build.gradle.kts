@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.3.71"
+    kotlin("jvm") version "1.3.72"
     id("org.jetbrains.dokka") version "0.10.0"
     application
     jacoco
@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "net.bms.orwell"
-version = "0.1.0"
+version = "0.1.1"
 
 repositories {
     mavenCentral()

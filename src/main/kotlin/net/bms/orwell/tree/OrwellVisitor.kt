@@ -2,7 +2,6 @@ package net.bms.orwell.tree
 
 import OrwellBaseVisitor
 import OrwellLexer
-import net.bms.orwell.valStore
 
 open class OrwellVisitor: OrwellBaseVisitor<Node>() {
     override fun visitExpr(ctx: OrwellParser.ExprContext?): Node? =
@@ -92,16 +91,9 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
 
     override fun visitIdentifier(ctx: OrwellParser.IdentifierContext?): Node? =
         if(ctx != null) {
-            with(NumberNode()) {
-                if (ctx.name.text in valStore)  {
-                    value = valStore[ctx.name.text] as Double
-                    this
-                }
-                else {
-                    println("\tERROR: The variable ${ctx.name.text} does not exist.")
-                    value = Double.NaN
-                    this
-                }
+            with(ValNode()) {
+                this.id = ctx.name.text
+                this
             }
         } else null
 
