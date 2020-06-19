@@ -8,10 +8,7 @@ import net.bms.orwell.tree.Node
 import net.bms.orwell.tree.OrwellVisitor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import java.io.File
-import java.io.FileNotFoundException
-import java.io.FileReader
-import java.io.FileWriter
+import java.io.*
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -29,15 +26,9 @@ fun main(args: Array<String>) {
         try {
             module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
             FileReader(args[0]).let { reader ->
-                reader.forEachLine {
-                    println(it)
-                    runOrwell(it, true)
-                }
+                runOrwell(reader, true)
                 reader.close()
             }
-//            println("\nFinal Bindings:")
-//            listBindings()
-            mainFun.addInstruction(ReturnInt(0))
             FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).let {
                 it.write(module.IRCode())
                 it.close()
@@ -76,23 +67,11 @@ fun main(args: Array<String>) {
 //    }
 }
 
-private fun runOrwell(line: String, compile: Boolean = false) {
-    val lexer = OrwellLexer(CharStreams.fromString(line))
-    val tokenStream = CommonTokenStream(lexer)
-    val parser = OrwellParser(tokenStream)
-    val tree = parser.top()
-    val visitor = OrwellVisitor()
-    val astree: Node?
-    if (tree is OrwellParser.ExprContext) {
-        astree = visitor.visitExpr(tree)
-        if (compile)
-            IRVisitor(mainFun).visit(astree)
-    }
-    else if (tree is OrwellParser.StatContext) {
-        astree = visitor.visitStat(tree)
-        if (compile)
-            IRVisitor(mainFun).visit(astree)
-    }
+private fun runOrwell(reader: Reader, compile: Boolean = false) {
+    val parser = OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader))))
+    val tree = OrwellVisitor().visit(parser.top())
+    if (compile)
+        IRVisitor(mainFun).visit(tree)
 }
 
 private fun listBindings() {

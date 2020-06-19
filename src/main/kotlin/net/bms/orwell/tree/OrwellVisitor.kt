@@ -2,68 +2,55 @@ package net.bms.orwell.tree
 
 import OrwellBaseVisitor
 import OrwellLexer
+import me.tomassetti.kllvm.ComparisonType
+import net.bms.orwell.llvm.FloatComparisonType
+import org.antlr.v4.runtime.tree.ParseTree
 
 open class OrwellVisitor: OrwellBaseVisitor<Node>() {
-    override fun visitExpr(ctx: OrwellParser.ExprContext?): Node? =
-        if (ctx != null) {
-            visit(ctx.e())
-        } else null
+    override fun visitTop(ctx: OrwellParser.TopContext?): Node =
+        MasterNode().apply {
+            ctx?.children?.forEach {
+                prog += visit(it)
+            }
+        }
 
-    override fun visitStat(ctx: OrwellParser.StatContext?): Node? =
+    override fun visitValDef(ctx: OrwellParser.ValDefContext?): Node? =
         if (ctx != null) {
-            visit(ctx.s())
-        } else null
-
-    override fun visitVal_def(ctx: OrwellParser.Val_defContext?): Node? =
-        if (ctx != null) {
-            with(ValNode()) {
-                (visit(ctx.name) as ValNode).let {
+            ValNode().apply {
+                (visit(ctx.val_def().name) as ValNode).let {
                     id = it.id
-                    value = visit(ctx.`val`)
+                    value = visit(ctx.val_def().`val`)
                     isNew = true
-                    this
                 }
             }
         } else null
 
-    override fun visitVal_dec(ctx: OrwellParser.Val_decContext?): Node? =
+    override fun visitValDec(ctx: OrwellParser.ValDecContext?): Node? =
         if (ctx != null) {
-            with(ValNode()) {
-                id = ctx.name.text
+            ValNode().apply {
+                id = ctx.val_dec().name.text
                 value = null
                 isNew = true
-                this
             }
         } else null
 
-    override fun visitAssignment(ctx: OrwellParser.AssignmentContext?): Node? =
+    override fun visitAssign(ctx: OrwellParser.AssignContext?): Node? =
         if (ctx != null) {
-            with(ValNode()) {
-                id = ctx.name.text
-                value = visit(ctx.`val`)
-                this
+            ValNode().apply {
+                id = ctx.assignment().name.text
+                value = visit(ctx.assignment().`val`)
             }
         } else null
 
     override fun visitNumber(ctx: OrwellParser.NumberContext?): Node? =
-        if (ctx != null) {
-            with(NumberNode()){
-                value = ctx.`val`.text.toDouble()
-                this
-            }
-        } else null
+        if (ctx != null) { NumberNode().apply{ value = ctx.`val`.text.toDouble() } } else null
 
     override fun visitNegExpr(ctx: OrwellParser.NegExprContext?): Node? =
-        if (ctx != null) {
-            with(NegateNode()) {
-                innerNode = visit(ctx.e())
-                this
-            }
-        } else null
+        if (ctx != null) { NegateNode().apply { innerNode = visit(ctx.e()) } } else null
 
     override fun visitBinExpr(ctx: OrwellParser.BinExprContext?): Node? =
         if (ctx != null) {
-            with(when (ctx.op.type) {
+            when (ctx.op.type) {
                 OrwellLexer.OP_ADD -> {
                     AdditionNode()
                 }
@@ -77,12 +64,9 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
                     MultiplicationNode()
                 }
                 else -> null
-            }) {
-                if (this != null) {
-                    left = visit(ctx.left)
-                    right = visit(ctx.right)
-                    this
-                } else null
+            }?.apply {
+                left = visit(ctx.left)
+                right = visit(ctx.right)
             }
         } else null
 
@@ -92,37 +76,78 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
         } else null
 
     override fun visitIdentifier(ctx: OrwellParser.IdentifierContext?): Node? =
-        if(ctx != null) {
-            with(ValNode()) {
-                this.id = ctx.name.text
-                this
-            }
-        } else null
+        if(ctx != null) { ValNode().apply { id = ctx.name.text } } else null
 
-    override fun visitFun_def(ctx: OrwellParser.Fun_defContext?): Node? =
+    override fun visitFunDef(ctx: OrwellParser.FunDefContext?): Node? =
         if (ctx != null) {
-            with(FunDefNode()) {
-                for (i in 0 until ctx.names.size) {
+            FunDefNode().apply {
+                for (i in 0 until ctx.fun_def().names.size) {
                     ValNode().let {
                         it.value = null
-                        it.id = ctx.names[i].text
-                        this.arg.add(it)
+                        it.id = ctx.fun_def().names[i].text
+                        arg.add(it)
                     }
                 }
-                `fun` = ctx.name.text
-                expr = ctx.e()
-                this
+                `fun` = ctx.fun_def().name.text
+                expr = ctx.fun_def().e()
             }
         } else null
 
     override fun visitFun_call(ctx: OrwellParser.Fun_callContext?): Node? =
         if (ctx != null) {
-            with(FunCallNode()) {
-                for (e in ctx.args) {
+            FunCallNode().apply {
+                for (e in ctx.args)
                     args.add(visit(e).toValNode())
-                }
                 `fun` = ctx.name.text
-                this
             }
         } else null
+
+    override fun visitFunCall(ctx: OrwellParser.FunCallContext?): Node? =
+        if (ctx != null) {
+            FunCallNode().apply {
+                for (e in ctx.fun_call().args)
+                    args.add(visit(e).toValNode())
+                `fun` = ctx.fun_call().name.text
+            }
+        } else null
+
+    override fun visitComparison(ctx: OrwellParser.ComparisonContext?): Node =
+        CompNode().apply {
+            left = visit(ctx?.left).toValNode()
+            right = visit(ctx?.right).toValNode()
+            type = when(ctx?.op?.text) {
+                "==" -> FloatComparisonType.Equal
+                "!=" -> FloatComparisonType.NotEqual
+                else -> FloatComparisonType.Equal
+            }
+        }
+
+    override fun visitIfBlock(ctx: OrwellParser.IfBlockContext?): Node =
+        IfNode().apply {
+            `if` = visit(ctx?.if_block()?.if_statement()) as BodyNode
+            comp = visit(ctx?.if_block()?.if_statement()?.comparison()) as CompNode?
+            if (ctx?.if_block()?.else_statement() != null)
+                `else` = visit(ctx.if_block().else_statement()) as BodyNode?
+            //ctx?.else_if_statement()?.forEach { elif.add(visit(it) as LimitedIfNode?) }
+        }
+
+    override fun visitIf_statement(ctx: OrwellParser.If_statementContext?): Node =
+        BodyNode().apply {
+            ctx?.top()?.forEach {
+                list.add(it)
+            }
+        }
+
+//    override fun visitElse_if_statement(ctx: OrwellParser.Else_if_statementContext?): Node =
+//        LimitedIfNode().apply {
+//            `if` = visit(ctx?.if_statement()) as BodyNode?
+//            comp = visit(ctx?.if_statement()?.comparison()) as CompNode?
+//        }
+
+    override fun visitElse_statement(ctx: OrwellParser.Else_statementContext?): Node =
+        BodyNode().apply {
+            ctx?.top()?.forEach {
+                list.add(it)
+            }
+        }
 }
