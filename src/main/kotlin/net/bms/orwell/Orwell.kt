@@ -39,10 +39,9 @@ fun main(args: Array<String>) {
            println("ERROR: $e; dropping into a REPL...")
         }
     }
-    else {
+    else
         println("ERROR: REPL Mode is not currently available.")
-        return
-    }
+    return
 //    println("For assistance, use ;help.\n")
 //    while(true) {
 //        print("orwell> ")
@@ -71,7 +70,7 @@ private fun runOrwell(reader: Reader, compile: Boolean = false) {
     val parser = OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader))))
     val tree = OrwellVisitor().visit(parser.top())
     if (compile)
-        IRVisitor(mainFun).visit(tree)
+        IRVisitor(mainFun, true).visit(tree)
 }
 
 private fun listBindings() {

@@ -4,8 +4,9 @@ import me.tomassetti.kllvm.*
 import net.bms.orwell.*
 import net.bms.orwell.llvm.FloatComparison
 
-class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuilder) {
+class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuilder, private val finally: Boolean = false) {
     constructor(func: FunctionBuilder): this(func, func.entryBlock())
+    constructor(func: FunctionBuilder, finally: Boolean): this(func, func.entryBlock(), finally)
     fun visit(node: Node?): Value = when(node) {
         is AdditionNode -> visit(node)
         is SubtractionNode -> visit(node)
@@ -22,13 +23,12 @@ class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuild
         is MasterNode -> visit(node)
         else -> Null(VoidType)
     }
-
     private fun visit(node: MasterNode): Value {
         node.prog.forEach { visit(it) }
-        block.addInstruction(ReturnInt(0))
+        if (finally)
+            block.addInstruction(ReturnInt(0))
         return Null(VoidType)
     }
-
     private fun visit(node: BodyNode): Value = visit(node, block)
     private fun visit(node: BodyNode?, block: BlockBuilder): Value {
         node?.list?.forEach{ IRVisitor(func, block).visit(OrwellVisitor().visit(it)) }
@@ -103,7 +103,6 @@ class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuild
             return Null(VoidType)
         }
     }
-
     private fun visit(node: FunCallNode): Value {
         val args = Array(node.args.size) {
             visit(node.args[it])

@@ -17,11 +17,20 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
     override fun visitValDef(ctx: OrwellParser.ValDefContext?): Node? =
         if (ctx != null) {
             ValNode().apply {
-                (visit(ctx.val_def().name) as ValNode).let {
+                (visit(ctx.val_def().name) as ValNode ).let {
                     id = it.id
                     value = visit(ctx.val_def().`val`)
                     isNew = true
                 }
+            }
+        } else null
+
+    override fun visitVal_dec(ctx: OrwellParser.Val_decContext?): Node? =
+        if (ctx != null) {
+            ValNode().apply {
+                id = ctx.name.text
+                value = null
+                isNew = true
             }
         } else null
 
@@ -118,6 +127,10 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
             type = when(ctx?.op?.text) {
                 "==" -> FloatComparisonType.Equal
                 "!=" -> FloatComparisonType.NotEqual
+                ">" -> FloatComparisonType.GreaterThan
+                "<" -> FloatComparisonType.LessThan
+                ">=" -> FloatComparisonType.GreaterThanOrEqual
+                "<=" -> FloatComparisonType.LessThanOrEqual
                 else -> FloatComparisonType.Equal
             }
         }

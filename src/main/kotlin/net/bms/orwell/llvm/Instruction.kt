@@ -1,7 +1,6 @@
 package net.bms.orwell.llvm
 
 import me.tomassetti.kllvm.BooleanType
-import me.tomassetti.kllvm.ComparisonType
 import me.tomassetti.kllvm.Instruction
 import me.tomassetti.kllvm.Value
 
@@ -12,5 +11,9 @@ data class FloatComparison(val comparisonType: FloatComparisonType, val left: Va
 
 enum class FloatComparisonType(val code: String) {
     Equal("oeq"),
-    NotEqual("one")
+    NotEqual("one"),
+    GreaterThan("ogt"),
+    GreaterThanOrEqual("oge"),
+    LessThan("olt"),
+    LessThanOrEqual("ole")
 }

@@ -20,7 +20,7 @@ fun_call: name=ID '(' (args+=e (',' args+=e)*)? ')';
 val_dec: 'val' name=ID;
 val_def: name=val_dec '=' val=e;
 assignment: name=ID '=' val=e;
-comparison: left=e op=('=='|'!=') right=e;
+comparison: left=e op=('=='|'!='|'>'|'<'|'>='|'<=') right=e;
 if_block: if_statement else_statement?;
 if_statement: 'if' '(' comparison ')' '{' top+ '}';
 //else_if_statement: 'else' if_statement;
