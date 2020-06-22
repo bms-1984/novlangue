@@ -4,9 +4,8 @@ import me.tomassetti.kllvm.*
 import net.bms.orwell.*
 import net.bms.orwell.llvm.FloatComparison
 
-class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuilder, private val finally: Boolean = false) {
-    constructor(func: FunctionBuilder): this(func, func.entryBlock())
-    constructor(func: FunctionBuilder, finally: Boolean): this(func, func.entryBlock(), finally)
+class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: BlockBuilder = func.entryBlock(),
+                private val finally: Boolean = false, private val exit: BlockBuilder? = null) {
     fun visit(node: Node?): Value = when(node) {
         is AdditionNode -> visit(node)
         is SubtractionNode -> visit(node)
@@ -17,7 +16,7 @@ class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuild
         is ValNode -> visit(node)
         is FunCallNode -> visit(node)
         is FunDefNode -> visit(node)
-        is LimitedIfNode -> visit(node)
+        is IfNode -> visit(node)
         is CompNode -> visit(node)
         is BodyNode -> visit(node)
         is MasterNode -> visit(node)
@@ -29,25 +28,35 @@ class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuild
             block.addInstruction(ReturnInt(0))
         return Null(VoidType)
     }
-    private fun visit(node: BodyNode): Value = visit(node, block)
-    private fun visit(node: BodyNode?, block: BlockBuilder): Value {
-        node?.list?.forEach{ IRVisitor(func, block).visit(OrwellVisitor().visit(it)) }
-        block.addInstruction(JumpInstruction(Label("post")))
+    private fun visit(node: BodyNode): Value {
+        node.list.forEach{ IRVisitor(func, block).visit(OrwellVisitor().visit(it)) }
+        block.addInstruction(JumpInstruction(exit!!.label()))
         return Null(VoidType)
     }
-    private fun visit(node: CompNode): Value =
-        block.tempValue(FloatComparison(node.type!!, visit(node.left), visit(node.right))).reference()
-    private fun visit(node: LimitedIfNode): Value {
-        if (node is IfNode) {
-            val comp = visit(node.comp)
-            val yes = func.createBlock("true")
-            visit(node.`if`, yes)
-            val no = func.createBlock("false")
-            visit(node.`else`, no)
-            val post = func.createBlock("post")
-            block.addInstruction(IfInstruction(comp, yes, no))
+    private fun visit(node: CompNode): Value = block.tempValue(FloatComparison(node.type!!, visit(node.left), visit(node.right))).reference()
+    private fun visit(node: IfNode): Value {
+        val comp = visit(node.comp)
+        val curBlock = block
+        val exit: BlockBuilder
+        if (node.isTop) {
+            val post = func.createBlock("post${func.tmpIndex()}")
             block = post
+            exit = block
         }
+        else
+            exit = this.exit!!
+        val yes = func.createBlock("true${func.tmpIndex()}")
+        IRVisitor(func, yes, exit = exit).visit(node.`if`)
+        val no = func.createBlock("false${func.tmpIndex()}")
+        if (node.elif.isEmpty())
+            IRVisitor(func, no, exit = exit).visit(node.`else`)
+        else
+            node.elif[0].also {
+                it?.elif = ArrayList(node.elif.filterIndexed { index, _ -> index != 0})
+                it?.`else` = node.`else`
+                IRVisitor(func, no, exit = exit).visit(it!!)
+            }
+        curBlock.addInstruction(IfInstruction(comp, yes, no))
         return Null(VoidType)
     }
     private fun visit(node: AdditionNode): Value {
@@ -83,7 +92,6 @@ class IRVisitor(private val func: FunctionBuilder, private var block: BlockBuild
             if (valStore.containsKey(node.id))
                 println("\tWARNING: Variable ${node.id} already exists. You should not use `val` here.")
             valStore[node.id] = visit(node.value)
-            // module.floatGlobalVariable(node.id, value = (valStore[node.id]!! as FloatConst).value)
             return valStore[node.id]!!
         }
         else if (node.value != null && !node.isNew) {

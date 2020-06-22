@@ -65,14 +65,12 @@ class ValNode: Node() {
     var isNew = false
 }
 
-class IfNode: LimitedIfNode() {
-    var elif = ArrayList<LimitedIfNode?>()
-    var `else`: BodyNode? = null
-}
-
-open class LimitedIfNode: Node() {
+open class IfNode: Node() {
     var `if`: BodyNode? = null
     var comp: CompNode? = null
+    var elif = ArrayList<IfNode?>()
+    var `else`: BodyNode? = null
+    var isTop = false
 }
 
 class BodyNode: Node() {

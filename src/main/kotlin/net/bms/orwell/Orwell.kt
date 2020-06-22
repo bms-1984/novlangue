@@ -4,7 +4,6 @@ import OrwellLexer
 import OrwellParser
 import me.tomassetti.kllvm.*
 import net.bms.orwell.tree.IRVisitor
-import net.bms.orwell.tree.Node
 import net.bms.orwell.tree.OrwellVisitor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
@@ -66,36 +65,37 @@ fun main(args: Array<String>) {
 //    }
 }
 
+@Suppress("SameParameterValue")
 private fun runOrwell(reader: Reader, compile: Boolean = false) {
     val parser = OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader))))
     val tree = OrwellVisitor().visit(parser.top())
     if (compile)
-        IRVisitor(mainFun, true).visit(tree)
+        IRVisitor(finally = true).visit(tree)
 }
 
-private fun listBindings() {
-    if (valStore.isEmpty()) {
-        println("No variables have been bound.\n")
-    }
-    else {
-        println("Variables:")
-        for ((k, v) in valStore)
-            println("$k -> ${(v as FloatConst).value}")
-    }
-    if (funStore.isEmpty()) {
-        println("No functions have been bound.")
-    }
-    else {
-        println("Functions:")
-        for (k in funStore.keys) {
-            println(k)
-        }
-    }
-}
+//private fun listBindings() {
+//    if (valStore.isEmpty()) {
+//        println("No variables have been bound.\n")
+//    }
+//    else {
+//        println("Variables:")
+//        for ((k, v) in valStore)
+//            println("$k -> ${(v as FloatConst).value}")
+//    }
+//    if (funStore.isEmpty()) {
+//        println("No functions have been bound.")
+//    }
+//    else {
+//        println("Functions:")
+//        for (k in funStore.keys) {
+//            println(k)
+//        }
+//    }
+//}
 
-private fun getHelp() {
-    println("Commands:")
-    println(";help -- prints this help dialogue")
-    println(";quit -- exits the REPL")
-    println(";list -- lists current bindings")
-}
+//private fun getHelp() {
+//    println("Commands:")
+//    println(";help -- prints this help dialogue")
+//    println(";quit -- exits the REPL")
+//    println(";list -- lists current bindings")
+//}

@@ -141,7 +141,8 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
             comp = visit(ctx?.if_block()?.if_statement()?.comparison()) as CompNode?
             if (ctx?.if_block()?.else_statement() != null)
                 `else` = visit(ctx.if_block().else_statement()) as BodyNode?
-            //ctx?.else_if_statement()?.forEach { elif.add(visit(it) as LimitedIfNode?) }
+            ctx?.if_block()?.else_if_statement()?.forEach { elif.add(visit(it) as IfNode?) }
+            isTop = true
         }
 
     override fun visitIf_statement(ctx: OrwellParser.If_statementContext?): Node =
@@ -151,11 +152,11 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
             }
         }
 
-//    override fun visitElse_if_statement(ctx: OrwellParser.Else_if_statementContext?): Node =
-//        LimitedIfNode().apply {
-//            `if` = visit(ctx?.if_statement()) as BodyNode?
-//            comp = visit(ctx?.if_statement()?.comparison()) as CompNode?
-//        }
+    override fun visitElse_if_statement(ctx: OrwellParser.Else_if_statementContext?): Node =
+        IfNode().apply {
+            `if` = visit(ctx?.if_statement()) as BodyNode?
+            comp = visit(ctx?.if_statement()?.comparison()) as CompNode?
+        }
 
     override fun visitElse_statement(ctx: OrwellParser.Else_statementContext?): Node =
         BodyNode().apply {
