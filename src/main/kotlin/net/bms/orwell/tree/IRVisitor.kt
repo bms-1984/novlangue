@@ -5,7 +5,8 @@ import net.bms.orwell.*
 import net.bms.orwell.llvm.FloatComparison
 
 class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: BlockBuilder = func.entryBlock(),
-                private val finally: Boolean = false, private val exit: BlockBuilder? = null) {
+                private val finally: Boolean = false, private val exit: BlockBuilder? = null,
+                private val helperFuncs: Boolean = (func == mainFun && finally)) {
     fun visit(node: Node?): Value = when(node) {
         is AdditionNode -> visit(node)
         is SubtractionNode -> visit(node)
@@ -23,6 +24,14 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
         else -> Null(VoidType)
     }
     private fun visit(node: MasterNode): Value {
+        if (helperFuncs) {
+            val print = module.createFunction("print", FloatType, listOf(FloatType))
+            funStore[print.name] = print
+            valStoreFun[print.name] = hashMapOf("s" to print.paramReference(0))
+            val num = print.tempValue(ConversionFloatToSignedInt(print.paramReference(0), I8Type))
+            print.addInstruction(Printf(print.stringConstForContent("%d\n").reference(), num.reference()))
+            print.addInstruction(Return(FloatConst(0F, FloatType)))
+        }
         node.prog.forEach { visit(it) }
         if (finally)
             block.addInstruction(ReturnInt(0))
@@ -143,9 +152,12 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
             val v = funct.paramReference(index)
             valStoreFun[node.`fun`]?.set(s, v)
         }
-        val ret = IRVisitor(funct).visit(OrwellVisitor().visit(node.expr))
-        val con = funct.tempValue(ConversionFloatToSignedInt(ret, I8Type))
-        funct.addInstruction(Printf(funct.stringConstForContent("${node.`fun`} result: %d\n").reference(), con.reference()))
+        node.body.forEach {
+            IRVisitor(funct).visit(OrwellVisitor().visit(it))
+        }
+        val ret = IRVisitor(funct).visit(OrwellVisitor().visit(node.returnExpr))
+        //val con = funct.tempValue(ConversionFloatToSignedInt(ret, I8Type))
+        //funct.addInstruction(Printf(funct.stringConstForContent("${node.`fun`} result: %d\n").reference(), con.reference()))
         funct.addInstruction(Return(ret))
         return ret
     }

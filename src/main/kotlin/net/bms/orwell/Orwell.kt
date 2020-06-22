@@ -22,10 +22,11 @@ fun main(args: Array<String>) {
     properties.load(object {}.javaClass.classLoader.getResourceAsStream("orwell.properties"))
     println("Sutter's Orwell Compiler v${properties.getProperty("version")}")
     if (args.isNotEmpty()) {
+        val helpers = !args.contains("-noStd")
         try {
             module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
             FileReader(args[0]).let { reader ->
-                runOrwell(reader, true)
+                runOrwell(reader, true, helpers)
                 reader.close()
             }
             FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).let {
@@ -66,11 +67,11 @@ fun main(args: Array<String>) {
 }
 
 @Suppress("SameParameterValue")
-private fun runOrwell(reader: Reader, compile: Boolean = false) {
+private fun runOrwell(reader: Reader, compile: Boolean = false, helpers: Boolean = false) {
     val parser = OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader))))
     val tree = OrwellVisitor().visit(parser.top())
     if (compile)
-        IRVisitor(finally = true).visit(tree)
+        IRVisitor(finally = true, helperFuncs = helpers).visit(tree)
 }
 
 //private fun listBindings() {

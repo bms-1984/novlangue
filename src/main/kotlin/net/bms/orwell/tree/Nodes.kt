@@ -46,13 +46,14 @@ class NegateNode: Node() {
 
 class FunDefNode: Node() {
     lateinit var `fun`: String
-    var arg = ArrayList<ValNode>()
-    lateinit var expr: OrwellParser.EContext
+    val arg = ArrayList<ValNode>()
+    val body = ArrayList<OrwellParser.TopContext>()
+    var returnExpr: OrwellParser.EContext? = null
 }
 
 class FunCallNode: Node() {
     lateinit var `fun`: String
-    var args = ArrayList<ValNode>()
+    val args = ArrayList<ValNode>()
 }
 
 class NumberNode: Node() {
@@ -74,7 +75,7 @@ open class IfNode: Node() {
 }
 
 class BodyNode: Node() {
-    var list = ArrayList<OrwellParser.TopContext>()
+    val list = ArrayList<OrwellParser.TopContext>()
 }
 
 class CompNode: Node() {

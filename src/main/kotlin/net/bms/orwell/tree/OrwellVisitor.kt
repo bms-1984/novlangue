@@ -2,9 +2,7 @@ package net.bms.orwell.tree
 
 import OrwellBaseVisitor
 import OrwellLexer
-import me.tomassetti.kllvm.ComparisonType
 import net.bms.orwell.llvm.FloatComparisonType
-import org.antlr.v4.runtime.tree.ParseTree
 
 open class OrwellVisitor: OrwellBaseVisitor<Node>() {
     override fun visitTop(ctx: OrwellParser.TopContext?): Node =
@@ -98,7 +96,10 @@ open class OrwellVisitor: OrwellBaseVisitor<Node>() {
                     }
                 }
                 `fun` = ctx.fun_def().name.text
-                expr = ctx.fun_def().e()
+                ctx.fun_def().top().forEach {
+                    body += it
+                }
+                returnExpr = ctx.fun_def().e()
             }
         } else null
 
