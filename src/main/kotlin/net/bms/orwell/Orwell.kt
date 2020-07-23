@@ -12,12 +12,34 @@ import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
-val valStore = ArrayList<LocalVariable>()
-val valStoreFun = HashMap<String, ArrayList<LocalVariable>>()
-val funStore = ArrayList<FunctionBuilder>()
-val module = ModuleBuilder()
-val mainFun = module.createMainFunction()
+/**
+ * Variable storage
+ */
+val valStore: ArrayList<LocalVariable> = ArrayList()
 
+/**
+ * Function parameter storage
+ */
+val valStoreFun: HashMap<String, ArrayList<LocalVariable>> = HashMap()
+
+/**
+ * Function storage
+ */
+val funStore: ArrayList<FunctionBuilder> = ArrayList()
+
+/**
+ * Top-level IR representation
+ */
+val module: ModuleBuilder = ModuleBuilder()
+
+/**
+ * IR main function
+ */
+val mainFun: FunctionBuilder = module.createMainFunction()
+
+/**
+ * Main function
+ */
 fun main(args: Array<String>) {
     val properties = Properties()
     properties.load(object {}.javaClass.classLoader.getResourceAsStream("orwell.properties"))
@@ -32,10 +54,10 @@ fun main(args: Array<String>) {
             FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).apply { write(module.IRCode()) }.close()
 
             return
+        } catch (e: FileNotFoundException) {
+            println("ERROR: $e; dropping into a REPL...")
         }
-        catch (e: FileNotFoundException) { println("ERROR: $e; dropping into a REPL...") }
-    }
-    else println("ERROR: REPL Mode is not currently available.")
+    } else println("ERROR: REPL Mode is not currently available.")
 
     return
 /*

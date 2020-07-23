@@ -1,9 +1,10 @@
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4-M2"
     id("org.jetbrains.dokka") version "0.10.0"
     application
     jacoco
     antlr
+    `maven-publish`
 }
 
 group = "net.bms.orwell"
@@ -13,6 +14,22 @@ repositories {
     mavenCentral()
     jcenter()
     maven("https://jitpack.io")
+    maven("https://dl.bintray.com/kotlin/kotlin-eap")
+    maven("https://kotlin.bintray.com/kotlinx")
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/bms-1984/orwell")
+            credentials {
+                username = System.getenv("GHUSERNAME")
+                password = System.getenv("GHTOKEN")
+            }
+        }
+    }
+    publications { create<MavenPublication>("orwell") { from(components["java"]) } }
 }
 
 application {
@@ -26,7 +43,7 @@ jacoco {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     antlr("org.antlr:antlr4:4.8")
-    compile("com.github.ftomassetti:kllvm:0.1.0")
+    implementation("com.github.ftomassetti:kllvm:0.1.0")
     implementation(kotlin("reflect"))
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
@@ -73,7 +90,5 @@ tasks {
 }
 
 sourceSets {
-    main {
-        java.srcDir("$buildDir/generated-src/antlr/main/java")
-    }
+    getByName("main") { java.srcDir("$buildDir/generated-src/antlr/main/java") }
 }

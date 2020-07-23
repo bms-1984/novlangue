@@ -4,10 +4,31 @@ import me.tomassetti.kllvm.*
 import net.bms.orwell.*
 import net.bms.orwell.llvm.FloatComparison
 
-class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: BlockBuilder = func.entryBlock(),
-                private val finally: Boolean = false, private val exit: BlockBuilder? = null,
-                private val helperFuncs: Boolean = (func == mainFun && finally)) {
-    fun visit(node: Node?): Value = when(node) {
+/**
+ * Translator from AST to LLVM IR
+ *
+ * @author Ben M. Sutter
+ * @since 0.1.1
+ * @constructor Creates a new IRVisitor object.
+ * @property func function in which the IR will reside, defaults to main.
+ * @property block block in which the IR will reside, defaults to main's entry block.
+ * @property finally should a return statement be appended, defaults to false.
+ * @property exit block to which this code should exit, defaults to null.
+ * @property helperFuncs should builtin functions be defined.
+ * @property inner is true if nested.
+ */
+class IRVisitor(
+    private val func: FunctionBuilder = mainFun, private var block: BlockBuilder = func.entryBlock(),
+    private val finally: Boolean = false, private var exit: BlockBuilder? = null,
+    private val helperFuncs: Boolean = (func == mainFun && finally), private val inner: Boolean = false
+) {
+    /**
+     * Recursively visits each AST node
+     *
+     * @param node top node.
+     * @return the return value of visiting the top node.
+     */
+    fun visit(node: Node?): Value = when (node) {
         is AdditionNode -> visit(node)
         is SubtractionNode -> visit(node)
         is MultiplicationNode -> visit(node)
@@ -24,6 +45,7 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
         is WhileNode -> visit(node)
         else -> Null(VoidType)
     }
+
     private fun visit(node: MasterNode): Value {
         if (helperFuncs) {
             val print = module.createFunction("print", FloatType, listOf(FloatType))
@@ -40,36 +62,44 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
 
         return Null(VoidType)
     }
+
     private fun visit(node: WhileNode): Value {
         val loop = func.createBlock("loop${func.tmpIndex()}")
         val post = func.createBlock("post${func.tmpIndex()}")
 
         block.addInstruction(IfInstruction(visit(node.comp), loop, post))
         block = post
-        node.list.forEach { IRVisitor(func, loop).visit(OrwellVisitor().visit(it)) }
-        loop.addInstruction(IfInstruction(IRVisitor(func, loop).visit(node.comp), loop, post))
-
+        node.list.forEach { IRVisitor(func, loop, inner = true).visit(OrwellVisitor().visit(it)) }
+        loop.addInstruction(
+            IfInstruction(
+                IRVisitor(func, loop).visit(node.comp),
+                loop,
+                post
+            )
+        )
         return Null(VoidType)
     }
+
     private fun visit(node: IfBodyNode): Value {
-        node.list.forEach{ IRVisitor(func, block).visit(OrwellVisitor().visit(it)) }
+        node.list.forEach { IRVisitor(func, block, exit = exit, inner = true).visit(OrwellVisitor().visit(it)) }
         block.addInstruction(JumpInstruction(exit!!.label()))
 
         return Null(VoidType)
     }
+
     private fun visit(node: CompNode): Value =
         block.tempValue(FloatComparison(node.type, visit(node.left), visit(node.right))).reference()
+
     private fun visit(node: IfNode): Value {
         val comp = visit(node.comp)
         val curBlock = block
         val exit: BlockBuilder
 
-        if (node.isTop) {
+        if (this.exit == null && (!inner || node.isTop)) {
             val post = func.createBlock("post${func.tmpIndex()}")
             block = post
             exit = block
-        }
-        else exit = this.exit!!
+        } else exit = this.exit!!
 
         val yes = func.createBlock("true${func.tmpIndex()}")
         IRVisitor(func, yes, exit = exit).visit(node.`if`)
@@ -77,7 +107,7 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
         if (node.elif.isEmpty()) IRVisitor(func, no, exit = exit).visit(node.`else`)
         else
             node.elif[0].also {
-                it.elif = ArrayList(node.elif.filterIndexed { index, _ -> index != 0})
+                it.elif = ArrayList(node.elif.filterIndexed { index, _ -> index != 0 })
                 it.`else` = node.`else`
                 IRVisitor(func, no, exit = exit).visit(it)
             }
@@ -85,14 +115,19 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
 
         return Null(VoidType)
     }
+
     private fun visit(node: AdditionNode): Value =
         block.tempValue(FloatAddition(visit(node.left), visit(node.right))).reference()
+
     private fun visit(node: SubtractionNode): Value =
         block.tempValue(FloatSubtraction(visit(node.left), visit(node.right))).reference()
+
     private fun visit(node: MultiplicationNode): Value =
         block.tempValue(FloatMultiplication(visit(node.left), visit(node.right))).reference()
+
     private fun visit(node: DivisionNode): Value =
         block.tempValue(FloatDivision(visit(node.left), visit(node.right))).reference()
+
     private fun visit(node: NegateNode): Value = FloatConst(-(visit(node.innerNode) as FloatConst).value, FloatType)
     private fun visit(node: NumberNode): Value = FloatConst(node.value.toFloat(), FloatType)
     private fun visit(node: ValNode): Value {
@@ -104,8 +139,7 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
 
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
-        }
-        else if (node.value != null && !node.isNew) {
+        } else if (node.value != null && !node.isNew) {
             if (!valStore.any { it.name == node.id }) {
                 println("\tERROR: The variable ${node.id} does not exist. Try using `val`.")
 
@@ -114,8 +148,7 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
 
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
-        }
-        else if (func.name in valStoreFun && valStoreFun[func.name]?.any { it.name == node.id }!!)
+        } else if (func.name in valStoreFun && valStoreFun[func.name]?.any { it.name == node.id }!!)
             return block.tempValue(Load(valStoreFun[func.name]?.find { it.name == node.id }!!.reference())).reference()
         else if (valStore.any { it.name == node.id })
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
@@ -125,18 +158,20 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
             return Null(VoidType)
         }
     }
+
     private fun visit(node: FunCallNode): Value {
         val args = Array(node.args.size) { visit(node.args[it]) }
 
-        if(!funStore.any { it.name == node.`fun` })
-        {
+        if (!funStore.any { it.name == node.`fun` }) {
             println("\tERROR: The function ${node.`fun`} does not exist.")
 
             return Null(VoidType)
         }
         if (node.args.size != valStoreFun[node.`fun`]?.size) {
-            println("\tERROR: The function ${node.`fun`} takes ${valStoreFun[node.`fun`]?.size} arguments, " +
-                    "but you supplied ${node.args.size}.")
+            println(
+                "\tERROR: The function ${node.`fun`} takes ${valStoreFun[node.`fun`]?.size} arguments, " +
+                        "but you supplied ${node.args.size}."
+            )
 
             return Null(VoidType)
         }
@@ -144,6 +179,7 @@ class IRVisitor(private val func: FunctionBuilder = mainFun, private var block: 
 
         return block.tempValue(inst).reference()
     }
+
     private fun visit(node: FunDefNode): Value {
         if (!funStore.any { it.name == node.`fun` }) {
             println("\tERROR: The function ${node.`fun`} already exists.")
