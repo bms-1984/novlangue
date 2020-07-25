@@ -1,10 +1,11 @@
 plugins {
-    kotlin("jvm") version "1.4-M2"
-    id("org.jetbrains.dokka") version "0.10.0"
+    kotlin("jvm") version "1.4-M3"
+    id("org.jetbrains.dokka") version "0.10.1"
     application
     jacoco
     antlr
     `maven-publish`
+    maven
 }
 
 group = "net.bms.orwell"
@@ -16,6 +17,16 @@ repositories {
     maven("https://jitpack.io")
     maven("https://dl.bintray.com/kotlin/kotlin-eap")
     maven("https://kotlin.bintray.com/kotlinx")
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/bms-1984/kllvm")
+            credentials {
+                username = System.getenv("GHUSERNAME")
+                password = System.getenv("GHTOKEN")
+            }
+        }
+    }
 }
 
 publishing {
@@ -43,10 +54,13 @@ jacoco {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     antlr("org.antlr:antlr4:4.8")
-    implementation("com.github.ftomassetti:kllvm:0.1.0")
+    //implementation("com.github.ftomassetti:kllvm:0.1.0")
     implementation(kotlin("reflect"))
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
+    testImplementation("junit:junit:4.12")
+    implementation("me.tomassetti:kllvm:0.1.1-SNAPSHOT")
+
 }
 
 tasks {
@@ -54,22 +68,22 @@ tasks {
         this.standardInput = System.`in`
     }
     jar {
-        manifest{
+        manifest {
             attributes["Implementation-Title"] = project.name
             attributes["Implementation-Version"] = project.version
             attributes["Main-Class"] = application.mainClassName
         }
-        from(configurations.compile.get().map {
+        from(configurations.compileClasspath.get().map {
             if (it.isDirectory) it else zipTree(it)
         })
     }
     compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.jvmTarget = "13"
         dependsOn("generateGrammarSource")
         kotlinOptions.suppressWarnings = true
     }
     compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.jvmTarget = "13"
     }
     dokka {
         outputFormat = "html"
@@ -85,10 +99,15 @@ tasks {
         outputDirectory = "$buildDir/dokka/gfm"
     }
     processResources {
-        filter{ it.replace("%VERSION%", project.version.toString()) }
+        filter { it.replace("%VERSION%", project.version.toString()) }
+    }
+    register("version") {
+        doLast {
+            println("Version $version")
+        }
     }
 }
 
-sourceSets {
-    getByName("main") { java.srcDir("$buildDir/generated-src/antlr/main/java") }
+sourceSets.main {
+    java.srcDir("$buildDir/generated-src/antlr/main/java")
 }

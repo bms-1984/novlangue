@@ -1,7 +1,7 @@
 package net.bms.orwell.tree
 
 import OrwellParser
-import net.bms.orwell.llvm.FloatComparisonType
+import me.tomassetti.kllvm.FloatComparisonType
 
 /**
  * AST Node
@@ -38,7 +38,6 @@ abstract class InfixExpressionNode : Node() {
     abstract var left: Node
     abstract var right: Node
 }
-
 
 /**
  * Node type for '+'
@@ -117,29 +116,21 @@ class ValNode : Node() {
     var isNew: Boolean = false
 }
 
-/**
- * Node type for if-elseif-else chains
- *
- * @property if lines to run if true.
- * @property comp condition to evaluate.
- * @property elif chain of further [IfNode]s, if an elseif is used.
- * @property else lines to run if false.
- * @property isTop false if this is an elseif.
- */
-open class IfNode : Node() {
-    var `if`: IfBodyNode = IfBodyNode()
-    var comp: CompNode = CompNode()
-    var elif: ArrayList<IfNode> = ArrayList()
-    var `else`: IfBodyNode = IfBodyNode()
-    var isTop: Boolean = false
+class ConditionalNode : Node() {
+    lateinit var `true`: BodyNode
+    var `false`: BodyNode? = null
+    var chain = ArrayList<ConditionalNode>()
+    var isTop = false
+    lateinit var comp: CompNode
+    var isLoop = false
 }
 
 /**
- * Body of an if chain
+ * Body of a conditional
  *
  * @property list list of lines to run.
  */
-class IfBodyNode : Node() {
+class BodyNode : Node() {
     val list: ArrayList<OrwellParser.TopContext> = ArrayList()
 }
 
@@ -154,16 +145,5 @@ class CompNode : Node() {
     var left: ValNode = ValNode()
     var right: ValNode = ValNode()
     var type: FloatComparisonType = FloatComparisonType.Equal
-}
-
-/**
- * Node type for a while loop
- *
- * @property comp condition to evaluate before each execution of [list].
- * @property list list of lines to execute within the statement.
- */
-class WhileNode : Node() {
-    var comp: CompNode = CompNode()
-    val list: ArrayList<OrwellParser.TopContext> = ArrayList()
 }
 

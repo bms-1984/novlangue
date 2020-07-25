@@ -20,7 +20,7 @@ val valStore: ArrayList<LocalVariable> = ArrayList()
 /**
  * Function parameter storage
  */
-val valStoreFun: HashMap<String, ArrayList<LocalVariable>> = HashMap()
+val funValStore: HashMap<String, ArrayList<LocalVariable>> = HashMap()
 
 /**
  * Function storage
@@ -60,7 +60,7 @@ fun main(args: Array<String>) {
     } else println("ERROR: REPL Mode is not currently available.")
 
     return
-/*
+/* TODO:: reimplement REPL
     println("For assistance, use ;help.\n")
     while(true) {
         print("orwell> ")
@@ -92,7 +92,7 @@ private fun runOrwell(reader: Reader, compile: Boolean = false, helpers: Boolean
     if (compile) IRVisitor(finally = true, helperFuncs = helpers).visit(tree)
 }
 
-/*
+/* TODO: fix listBindings for new variable and function storage
 private fun listBindings() {
     if (valStore.isEmpty()) {
         println("No variables have been bound.\n")

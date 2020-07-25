@@ -2,7 +2,6 @@ package net.bms.orwell.tree
 
 import me.tomassetti.kllvm.*
 import net.bms.orwell.*
-import net.bms.orwell.llvm.FloatComparison
 
 /**
  * Translator from AST to LLVM IR
@@ -13,22 +12,15 @@ import net.bms.orwell.llvm.FloatComparison
  * @property func function in which the IR will reside, defaults to main.
  * @property block block in which the IR will reside, defaults to main's entry block.
  * @property finally should a return statement be appended, defaults to false.
- * @property exit block to which this code should exit, defaults to null.
  * @property helperFuncs should builtin functions be defined.
- * @property inner is true if nested.
  */
-class IRVisitor(
-    private val func: FunctionBuilder = mainFun, private var block: BlockBuilder = func.entryBlock(),
-    private val finally: Boolean = false, private var exit: BlockBuilder? = null,
-    private val helperFuncs: Boolean = (func == mainFun && finally), private val inner: Boolean = false
+open class IRVisitor(
+    private val func: FunctionBuilder = mainFun, var block: BlockBuilder = func.entryBlock(),
+    private val finally: Boolean = false, private val helperFuncs: Boolean = (func == mainFun && finally),
+    private val exitBlock: BlockBuilder? = null
 ) {
-    /**
-     * Recursively visits each AST node
-     *
-     * @param node top node.
-     * @return the return value of visiting the top node.
-     */
-    fun visit(node: Node?): Value = when (node) {
+
+    internal fun visit(node: Node?): Value = when (node) {
         is AdditionNode -> visit(node)
         is SubtractionNode -> visit(node)
         is MultiplicationNode -> visit(node)
@@ -38,13 +30,15 @@ class IRVisitor(
         is ValNode -> visit(node)
         is FunCallNode -> visit(node)
         is FunDefNode -> visit(node)
-        is IfNode -> visit(node)
+        is ConditionalNode -> visit(node)
         is CompNode -> visit(node)
-        is IfBodyNode -> visit(node)
         is MasterNode -> visit(node)
-        is WhileNode -> visit(node)
         else -> Null(VoidType)
     }
+
+    fun getUniqueID(title: String = "") =
+        if (title.isEmpty()) "_INTERNAL_${func.name}_${func.tmpIndex()}"
+        else "_INTERNAL_${func.name.toUpperCase()}_${title.toUpperCase()}_${func.tmpIndex()}"
 
     private fun visit(node: MasterNode): Value {
         if (helperFuncs) {
@@ -52,7 +46,7 @@ class IRVisitor(
             funStore += print
             val variable = print.entryBlock().addVariable(FloatType, "d")
             print.entryBlock().assignVariable(variable, print.paramReference(0))
-            valStoreFun += hashMapOf(print.name to arrayListOf(variable as LocalVariable))
+            funValStore += hashMapOf(print.name to arrayListOf(variable as LocalVariable))
             val num = print.tempValue(ConversionFloatToSignedInt(print.paramReference(0), I8Type))
             print.addInstruction(Printf(print.stringConstForContent("%d\n").reference(), num.reference()))
             print.addInstruction(Return(FloatConst(0F, FloatType)))
@@ -63,58 +57,29 @@ class IRVisitor(
         return Null(VoidType)
     }
 
-    private fun visit(node: WhileNode): Value {
-        val loop = func.createBlock("loop${func.tmpIndex()}")
-        val post = func.createBlock("post${func.tmpIndex()}")
+    internal open fun visit(node: ConditionalNode): Value {
+        val trueBlock = func.createBlock(getUniqueID("conditional_true"))
+        val exitBlock = exitBlock ?: func.createBlock(getUniqueID("conditional_exit"))
 
-        block.addInstruction(IfInstruction(visit(node.comp), loop, post))
-        block = post
-        node.list.forEach { IRVisitor(func, loop, inner = true).visit(OrwellVisitor().visit(it)) }
-        loop.addInstruction(
-            IfInstruction(
-                IRVisitor(func, loop).visit(node.comp),
-                loop,
-                post
+        if (node.isLoop)
+            ConditionalVisitor(func, block, exitBlock, trueBlock, exitBlock).visitLoop(node.`true`, node.comp)
+        else {
+            val falseBlock = func.createBlock(getUniqueID("conditional_false"))
+            ConditionalVisitor(func, block, exitBlock, trueBlock, falseBlock).visit(
+                node.`true`,
+                node.`false`,
+                node.comp,
+                node.chain
             )
-        )
-        return Null(VoidType)
-    }
+        }
 
-    private fun visit(node: IfBodyNode): Value {
-        node.list.forEach { IRVisitor(func, block, exit = exit, inner = true).visit(OrwellVisitor().visit(it)) }
-        block.addInstruction(JumpInstruction(exit!!.label()))
+        block = exitBlock
 
         return Null(VoidType)
     }
 
     private fun visit(node: CompNode): Value =
         block.tempValue(FloatComparison(node.type, visit(node.left), visit(node.right))).reference()
-
-    private fun visit(node: IfNode): Value {
-        val comp = visit(node.comp)
-        val curBlock = block
-        val exit: BlockBuilder
-
-        if (this.exit == null && (!inner || node.isTop)) {
-            val post = func.createBlock("post${func.tmpIndex()}")
-            block = post
-            exit = block
-        } else exit = this.exit!!
-
-        val yes = func.createBlock("true${func.tmpIndex()}")
-        IRVisitor(func, yes, exit = exit).visit(node.`if`)
-        val no = func.createBlock("false${func.tmpIndex()}")
-        if (node.elif.isEmpty()) IRVisitor(func, no, exit = exit).visit(node.`else`)
-        else
-            node.elif[0].also {
-                it.elif = ArrayList(node.elif.filterIndexed { index, _ -> index != 0 })
-                it.`else` = node.`else`
-                IRVisitor(func, no, exit = exit).visit(it)
-            }
-        curBlock.addInstruction(IfInstruction(comp, yes, no))
-
-        return Null(VoidType)
-    }
 
     private fun visit(node: AdditionNode): Value =
         block.tempValue(FloatAddition(visit(node.left), visit(node.right))).reference()
@@ -148,8 +113,8 @@ class IRVisitor(
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
 
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
-        } else if (func.name in valStoreFun && valStoreFun[func.name]?.any { it.name == node.id }!!)
-            return block.tempValue(Load(valStoreFun[func.name]?.find { it.name == node.id }!!.reference())).reference()
+        } else if (func.name in funValStore && funValStore[func.name]?.any { it.name == node.id }!!)
+            return block.tempValue(Load(funValStore[func.name]?.find { it.name == node.id }!!.reference())).reference()
         else if (valStore.any { it.name == node.id })
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
         else {
@@ -167,9 +132,9 @@ class IRVisitor(
 
             return Null(VoidType)
         }
-        if (node.args.size != valStoreFun[node.`fun`]?.size) {
+        if (node.args.size != funValStore[node.`fun`]?.size) {
             println(
-                "\tERROR: The function ${node.`fun`} takes ${valStoreFun[node.`fun`]?.size} arguments, " +
+                "\tERROR: The function ${node.`fun`} takes ${funValStore[node.`fun`]?.size} arguments, " +
                         "but you supplied ${node.args.size}."
             )
 
@@ -190,11 +155,11 @@ class IRVisitor(
         val funct = module.createFunction(node.`fun`, FloatType, List(node.arg.size) { FloatType })
 
         funStore += funct
-        if (!valStoreFun.containsKey(node.`fun`)) valStoreFun[node.`fun`] = ArrayList()
+        if (!funValStore.containsKey(node.`fun`)) funValStore[node.`fun`] = ArrayList()
         names.forEachIndexed { index, s ->
             val variable = funct.entryBlock().addVariable(FloatType, s)
             funct.entryBlock().assignVariable(variable, funct.paramReference(index))
-            valStoreFun[node.`fun`]?.add(variable as LocalVariable)
+            funValStore[node.`fun`]?.add(variable as LocalVariable)
         }
         node.body.forEach { IRVisitor(funct).visit(OrwellVisitor().visit(it)) }
         val ret = IRVisitor(funct).visit(OrwellVisitor().visit(node.returnExpr))

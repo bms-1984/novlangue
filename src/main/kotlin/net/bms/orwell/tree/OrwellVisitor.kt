@@ -3,7 +3,7 @@ package net.bms.orwell.tree
 import OrwellBaseVisitor
 import OrwellLexer
 import OrwellParser
-import net.bms.orwell.llvm.FloatComparisonType
+import me.tomassetti.kllvm.FloatComparisonType
 
 /**
  * Creates an AST from a the ANTLR parse tree
@@ -159,12 +159,12 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
      * If chain
      */
     override fun visitIfBlock(ctx: OrwellParser.IfBlockContext?): Node =
-        IfNode().apply {
-            `if` = visit(ctx?.if_block()?.if_statement()) as IfBodyNode
+        ConditionalNode().apply {
+            `true` = visit(ctx?.if_block()?.if_statement()) as BodyNode
             comp = visit(ctx?.if_block()?.if_statement()?.comparison()) as CompNode
             if (ctx?.if_block()?.else_statement() != null)
-                `else` = visit(ctx.if_block().else_statement()) as IfBodyNode
-            ctx?.if_block()?.else_if_statement()?.forEach { elif.add(visit(it) as IfNode) }
+                `false` = visit(ctx.if_block().else_statement()) as BodyNode
+            ctx?.if_block()?.else_if_statement()?.forEach { chain.add(visit(it) as ConditionalNode) }
             isTop = true
         }
 
@@ -172,14 +172,14 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
      * If statement
      */
     override fun visitIf_statement(ctx: OrwellParser.If_statementContext?): Node =
-        IfBodyNode().apply { ctx?.top()?.forEach { list.add(it) } }
+        BodyNode().apply { ctx?.top()?.forEach { list.add(it) } }
 
     /**
      * Else if statement
      */
     override fun visitElse_if_statement(ctx: OrwellParser.Else_if_statementContext?): Node =
-        IfNode().apply {
-            `if` = visit(ctx?.if_statement()) as IfBodyNode
+        ConditionalNode().apply {
+            `true` = visit(ctx?.if_statement()) as BodyNode
             comp = visit(ctx?.if_statement()?.comparison()) as CompNode
         }
 
@@ -187,14 +187,16 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
      * Else statement
      */
     override fun visitElse_statement(ctx: OrwellParser.Else_statementContext?): Node =
-        IfBodyNode().apply { ctx?.top()?.forEach { list.add(it) } }
+        BodyNode().apply { ctx?.top()?.forEach { list.add(it) } }
 
     /**
      * While loop
      */
     override fun visitWhile(ctx: OrwellParser.WhileContext?): Node =
-        WhileNode().apply {
+        ConditionalNode().apply {
             comp = visit(ctx?.while_loop()?.comparison()) as CompNode
-            ctx?.while_loop()?.top()?.forEach { list.add(it) }
+            `true` = BodyNode().apply { ctx?.while_loop()?.top()?.forEach { list.add(it) } }
+            isTop = true
+            isLoop = true
         }
 }
