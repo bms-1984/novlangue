@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "net.bms.orwell"
-version = "0.1.2"
+version = "0.1.3"
 
 repositories {
     mavenCentral()
@@ -54,12 +54,11 @@ jacoco {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     antlr("org.antlr:antlr4:4.8")
-    //implementation("com.github.ftomassetti:kllvm:0.1.0")
     implementation(kotlin("reflect"))
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.12")
-    implementation("me.tomassetti:kllvm:0.1.1-SNAPSHOT")
+    implementation("me.tomassetti:kllvm:0.1.2-SNAPSHOT")
 
 }
 

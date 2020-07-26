@@ -14,6 +14,7 @@ e:
     | left=e op=('*'|'/') right=e #BinExpr
     | left=e op=('+'|'-') right=e #BinExpr
     | val=NUM #Number
+    | val=STRING #String
     | fun_call #FunCall
     | name=ID #Identifier;
 fun_def: 'fun' name=ID '(' (names+=ID (',' names+=ID)*)? ')'  '{' top* e '}';
@@ -28,6 +29,7 @@ else_if_statement: 'else' if_statement;
 else_statement: 'else' '{' top+ '}';
 while_loop: 'while' '(' comparison ')' '{' top+ '}';
 
+STRING : '"' ( '\\"' | . )*? '"';
 NUM: DIGIT+('.'DIGIT+)?;
 OP_ADD: '+';
 OP_SUB: '-';
@@ -35,4 +37,7 @@ OP_MUL: '*';
 OP_DIV: '/';
 fragment DIGIT: [0-9]+;
 ID: [a-zA-Z_]+;
+COMMENT: '/*' .*? '*/' -> skip;
+LINE_COMMENT: '//' .*? '\n' -> skip;
 WS: [ \n\t\r]+ -> skip;
+

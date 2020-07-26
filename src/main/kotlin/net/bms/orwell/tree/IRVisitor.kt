@@ -42,19 +42,23 @@ open class IRVisitor(
 
     private fun visit(node: MasterNode): Value {
         if (helperFuncs) {
-            val print = module.createFunction("print", FloatType, listOf(FloatType))
+            val print = module.createFunction("print", DoubleType, listOf(DoubleType))
             funStore += print
-            val variable = print.entryBlock().addVariable(FloatType, "d")
+            val variable = print.entryBlock().addVariable(DoubleType, "d")
             print.entryBlock().assignVariable(variable, print.paramReference(0))
             funValStore += hashMapOf(print.name to arrayListOf(variable as LocalVariable))
-            val num = print.tempValue(ConversionFloatToSignedInt(print.paramReference(0), I8Type))
-            print.addInstruction(Printf(print.stringConstForContent("%d\n").reference(), num.reference()))
-            print.addInstruction(Return(FloatConst(0F, FloatType)))
+            print.addInstruction(
+                Printf(
+                    print.stringConstForContent("%.2f\n").reference(),
+                    print.entryBlock().load(variable.reference())
+                )
+            )
+            print.addInstruction(Return(print.entryBlock().load(variable.reference())))
         }
         node.prog.forEach { visit(it) }
         if (finally) block.addInstruction(ReturnInt(0))
 
-        return Null(VoidType)
+        return Null()
     }
 
     internal open fun visit(node: ConditionalNode): Value {
@@ -75,7 +79,7 @@ open class IRVisitor(
 
         block = exitBlock
 
-        return Null(VoidType)
+        return Null()
     }
 
     private fun visit(node: CompNode): Value =
@@ -93,14 +97,14 @@ open class IRVisitor(
     private fun visit(node: DivisionNode): Value =
         block.tempValue(FloatDivision(visit(node.left), visit(node.right))).reference()
 
-    private fun visit(node: NegateNode): Value = FloatConst(-(visit(node.innerNode) as FloatConst).value, FloatType)
-    private fun visit(node: NumberNode): Value = FloatConst(node.value.toFloat(), FloatType)
+    private fun visit(node: NegateNode): Value = DoubleConst(-(visit(node.innerNode) as DoubleConst).value)
+    private fun visit(node: NumberNode): Value = DoubleConst(node.value)
     private fun visit(node: ValNode): Value {
         if (node.id.isEmpty()) return visit(node.value)
         else if (node.value != null && node.isNew) {
             if (valStore.any { it.name == node.id })
                 println("\tWARNING: Variable ${node.id} already exists. You should not use `val` here.")
-            valStore += block.addVariable(FloatType, node.id) as LocalVariable
+            valStore += block.addVariable(DoubleType, node.id) as LocalVariable
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
 
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
@@ -108,7 +112,7 @@ open class IRVisitor(
             if (!valStore.any { it.name == node.id }) {
                 println("\tERROR: The variable ${node.id} does not exist. Try using `val`.")
 
-                return Null(VoidType)
+                return Null()
             }
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
 
@@ -120,7 +124,7 @@ open class IRVisitor(
         else {
             println("\tERROR: The variable ${node.id} does not exist.")
 
-            return Null(VoidType)
+            return Null()
         }
     }
 
@@ -130,7 +134,7 @@ open class IRVisitor(
         if (!funStore.any { it.name == node.`fun` }) {
             println("\tERROR: The function ${node.`fun`} does not exist.")
 
-            return Null(VoidType)
+            return Null()
         }
         if (node.args.size != funValStore[node.`fun`]?.size) {
             println(
@@ -138,9 +142,9 @@ open class IRVisitor(
                         "but you supplied ${node.args.size}."
             )
 
-            return Null(VoidType)
+            return Null()
         }
-        val inst = Call(FloatType, node.`fun`, *args)
+        val inst = Call(DoubleType, node.`fun`, *args)
 
         return block.tempValue(inst).reference()
     }
@@ -148,11 +152,11 @@ open class IRVisitor(
     private fun visit(node: FunDefNode): Value {
         if (!funStore.any { it.name == node.`fun` }) {
             println("\tERROR: The function ${node.`fun`} already exists.")
-            return Null(VoidType)
+            return Null()
         }
 
         val names = Array(node.arg.size) { node.arg[it].id }
-        val funct = module.createFunction(node.`fun`, FloatType, List(node.arg.size) { FloatType })
+        val funct = module.createFunction(node.`fun`, DoubleType, List(node.arg.size) { DoubleType })
 
         funStore += funct
         if (!funValStore.containsKey(node.`fun`)) funValStore[node.`fun`] = ArrayList()

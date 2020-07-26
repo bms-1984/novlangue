@@ -51,8 +51,7 @@ fun main(args: Array<String>) {
         try {
             module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
             FileReader(args[0]).also { reader -> runOrwell(reader, true, helpers) }.close()
-            FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).apply { write(module.IRCode()) }.close()
-
+            FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).apply { write(module.IRCode().trim()) }.close()
             return
         } catch (e: FileNotFoundException) {
             println("ERROR: $e; dropping into a REPL...")
