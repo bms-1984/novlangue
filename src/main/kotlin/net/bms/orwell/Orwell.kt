@@ -12,6 +12,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.random.Random
+import kotlin.random.nextUInt
 
 /**
  * Variable storage
@@ -41,6 +42,7 @@ lateinit var mainFun: FunctionBuilder
 /**
  * Main function
  */
+@ExperimentalUnsignedTypes
 fun main(args: Array<String>) {
     val properties = Properties()
     properties.load(object {}.javaClass.classLoader.getResourceAsStream("orwell.properties"))
@@ -50,7 +52,7 @@ fun main(args: Array<String>) {
         mainFun = if (!args.contains("-noMain"))
             module.createMainFunction()
         else
-            module.createFunction("__INTERNAL_${Random.nextInt()}_", I32Type, listOf())
+            module.createFunction("__INTERNAL_${Random.nextUInt()}_", I32Type, listOf())
         val helpers = !args.contains("-noStd")
 
         try {
