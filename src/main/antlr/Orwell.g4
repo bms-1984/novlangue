@@ -17,9 +17,10 @@ e:
     | val=STRING #String
     | fun_call #FunCall
     | name=ID #Identifier;
-fun_def: 'fun' name=ID '(' (names+=ID (',' names+=ID)*)? ')'  '{' top* e '}';
+fun_def: 'fun' name=ID '(' (names+=ID ':' types+=ID
+    (',' names+=ID ':' types+=ID)*)? ')' (':' type=ID)?  '{' top* e '}';
 fun_call: name=ID '(' (args+=e (',' args+=e)*)? ')';
-val_dec: 'val' name=ID;
+val_dec: 'val'  name=ID (':' type=ID)?;
 val_def: name=val_dec '=' val=e;
 assignment: name=ID '=' val=e;
 comparison: left=e op=('=='|'!='|'>'|'<'|'>='|'<=') right=e;

@@ -15,7 +15,7 @@ import net.bms.orwell.*
  * @property helperFuncs should builtin functions be defined.
  */
 open class IRVisitor(
-    private val func: FunctionBuilder = mainFun, var block: BlockBuilder = func.entryBlock(),
+    private val func: FunctionBuilder, var block: BlockBuilder = func.entryBlock(),
     private val finally: Boolean = false, private val helperFuncs: Boolean = (func == mainFun && finally),
     private val exitBlock: BlockBuilder? = null
 ) {
@@ -33,6 +33,7 @@ open class IRVisitor(
         is ConditionalNode -> visit(node)
         is CompNode -> visit(node)
         is MasterNode -> visit(node)
+        is BodyNode -> visit(node)
         else -> Null(VoidType)
     }
 
@@ -40,16 +41,23 @@ open class IRVisitor(
         if (title.isEmpty()) "_INTERNAL_${func.name}_${func.tmpIndex()}"
         else "_INTERNAL_${func.name.toUpperCase()}_${title.toUpperCase()}_${func.tmpIndex()}"
 
+    private fun visit(node: BodyNode): Value {
+        node.list.forEach { visit(OrwellVisitor().visit(it)) }
+        if (node.returnExpr != null)
+            block.addInstruction(Return(visit(OrwellVisitor().visit(node.returnExpr))))
+        return Null()
+    }
+
     private fun visit(node: MasterNode): Value {
         if (helperFuncs) {
-            val print = module.createFunction("print", DoubleType, listOf(DoubleType))
+            val print = module.createFunction("print", I32Type, listOf(I32Type))
             funStore += print
-            val variable = print.entryBlock().addVariable(DoubleType, "d")
+            val variable = print.entryBlock().addVariable(I32Type, "d")
             print.entryBlock().assignVariable(variable, print.paramReference(0))
             funValStore += hashMapOf(print.name to arrayListOf(variable as LocalVariable))
             print.addInstruction(
                 Printf(
-                    print.stringConstForContent("%.2f\n").reference(),
+                    print.stringConstForContent("%d\n").reference(),
                     print.entryBlock().load(variable.reference())
                 )
             )
@@ -83,28 +91,33 @@ open class IRVisitor(
     }
 
     private fun visit(node: CompNode): Value =
-        block.tempValue(FloatComparison(node.type, visit(node.left), visit(node.right))).reference()
+        block.tempValue(IntComparison(node.type, visit(node.left), visit(node.right))).reference()
 
     private fun visit(node: AdditionNode): Value =
-        block.tempValue(FloatAddition(visit(node.left), visit(node.right))).reference()
+        block.tempValue(IntAddition(visit(node.left), visit(node.right))).reference()
 
     private fun visit(node: SubtractionNode): Value =
-        block.tempValue(FloatSubtraction(visit(node.left), visit(node.right))).reference()
+        block.tempValue(IntSubtraction(visit(node.left), visit(node.right))).reference()
 
     private fun visit(node: MultiplicationNode): Value =
-        block.tempValue(FloatMultiplication(visit(node.left), visit(node.right))).reference()
+        block.tempValue(IntMultiplication(visit(node.left), visit(node.right))).reference()
 
     private fun visit(node: DivisionNode): Value =
-        block.tempValue(FloatDivision(visit(node.left), visit(node.right))).reference()
+        block.tempValue(SignedIntDivision(visit(node.left), visit(node.right))).reference()
 
-    private fun visit(node: NegateNode): Value = DoubleConst(-(visit(node.innerNode) as DoubleConst).value)
-    private fun visit(node: NumberNode): Value = DoubleConst(node.value)
+    private fun visit(node: NegateNode): Value = IntConst(-(visit(node.innerNode) as IntConst).value, I32Type)
+    private fun visit(node: NumberNode): Value = IntConst(node.value.toInt(), I32Type)
     private fun visit(node: ValNode): Value {
         if (node.id.isEmpty()) return visit(node.value)
         else if (node.value != null && node.isNew) {
             if (valStore.any { it.name == node.id })
                 println("\tWARNING: Variable ${node.id} already exists. You should not use `val` here.")
-            valStore += block.addVariable(DoubleType, node.id) as LocalVariable
+            valStore +=
+                when (node.type) {
+                    ValTypes.INT -> block.addVariable(I32Type, node.id) as LocalVariable
+                    ValTypes.DOUBLE -> block.addVariable(DoubleType, node.id) as LocalVariable
+                    ValTypes.STRING -> block.addVariable(Pointer(I8Type), node.id) as LocalVariable
+                }
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
 
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
@@ -144,31 +157,60 @@ open class IRVisitor(
 
             return Null()
         }
-        val inst = Call(DoubleType, node.`fun`, *args)
+        node.args.forEachIndexed { index, valNode ->
+            if (
+                !(((funValStore[node.`fun`]
+                    ?: return Null())[index].type == DoubleType && valNode.type == ValTypes.DOUBLE) ||
+                        ((funValStore[node.`fun`]
+                            ?: return Null())[index].type == I32Type && valNode.type == ValTypes.INT) ||
+                        ((funValStore[node.`fun`]
+                            ?: return Null())[index].type == Pointer(I8Type) && valNode.type == ValTypes.STRING))
+            ) {
+                println("\tERROR: Function argument mismatch.")
+                return Null()
+            }
+        }
 
+        val inst = Call(I32Type, node.`fun`, *args)
         return block.tempValue(inst).reference()
     }
 
     private fun visit(node: FunDefNode): Value {
-        if (!funStore.any { it.name == node.`fun` }) {
+        if (funStore.any { it.name == node.`fun` }) {
             println("\tERROR: The function ${node.`fun`} already exists.")
             return Null()
         }
 
         val names = Array(node.arg.size) { node.arg[it].id }
-        val funct = module.createFunction(node.`fun`, DoubleType, List(node.arg.size) { DoubleType })
+        val list = List(node.arg.size) {
+            when (node.arg[it].type) {
+                ValTypes.INT -> I32Type
+                ValTypes.DOUBLE -> DoubleType
+                ValTypes.STRING -> Pointer(I8Type)
+            }
+        }
+        val funct =
+            when (node.returnType) {
+                ValTypes.INT -> module.createFunction(node.`fun`, I32Type, list)
+                ValTypes.DOUBLE -> module.createFunction(node.`fun`, DoubleType, list)
+                ValTypes.STRING -> module.createFunction(node.`fun`, Pointer(I8Type), list)
+            }
 
         funStore += funct
         if (!funValStore.containsKey(node.`fun`)) funValStore[node.`fun`] = ArrayList()
         names.forEachIndexed { index, s ->
-            val variable = funct.entryBlock().addVariable(FloatType, s)
+            val variable =
+                when (node.arg[index].type) {
+                    ValTypes.INT -> funct.entryBlock().addVariable(I32Type, s) as LocalVariable
+                    ValTypes.DOUBLE -> funct.entryBlock().addVariable(DoubleType, s) as LocalVariable
+                    ValTypes.STRING -> funct.entryBlock().addVariable(Pointer(I8Type), s) as LocalVariable
+                }
             funct.entryBlock().assignVariable(variable, funct.paramReference(index))
-            funValStore[node.`fun`]?.add(variable as LocalVariable)
+            funValStore[node.`fun`]?.add(variable)
         }
-        node.body.forEach { IRVisitor(funct).visit(OrwellVisitor().visit(it)) }
-        val ret = IRVisitor(funct).visit(OrwellVisitor().visit(node.returnExpr))
-        funct.addInstruction(Return(ret))
 
-        return ret
+        IRVisitor(funct).visit(node.body)
+
+        return Null()
     }
 }

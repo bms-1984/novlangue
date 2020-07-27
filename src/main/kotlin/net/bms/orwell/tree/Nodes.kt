@@ -1,7 +1,7 @@
 package net.bms.orwell.tree
 
 import OrwellParser
-import me.tomassetti.kllvm.FloatComparisonType
+import me.tomassetti.kllvm.IntComparisonType
 
 /**
  * AST Node
@@ -79,8 +79,8 @@ class NegateNode : Node() {
 class FunDefNode : Node() {
     lateinit var `fun`: String
     val arg: ArrayList<ValNode> = ArrayList()
-    val body: ArrayList<OrwellParser.TopContext> = ArrayList()
-    var returnExpr: OrwellParser.EContext? = null
+    val body: BodyNode = BodyNode()
+    var returnType: ValTypes = ValTypes.INT
 }
 
 /**
@@ -114,6 +114,13 @@ class ValNode : Node() {
     var id: String = ""
     var value: Node? = null
     var isNew: Boolean = false
+    var type: ValTypes = ValTypes.INT
+}
+
+enum class ValTypes {
+    DOUBLE,
+    INT,
+    STRING
 }
 
 class ConditionalNode : Node() {
@@ -132,6 +139,7 @@ class ConditionalNode : Node() {
  */
 class BodyNode : Node() {
     val list: ArrayList<OrwellParser.TopContext> = ArrayList()
+    var returnExpr: OrwellParser.EContext? = null
 }
 
 /**
@@ -144,6 +152,6 @@ class BodyNode : Node() {
 class CompNode : Node() {
     var left: ValNode = ValNode()
     var right: ValNode = ValNode()
-    var type: FloatComparisonType = FloatComparisonType.Equal
+    var type: IntComparisonType = IntComparisonType.Equal
 }
 

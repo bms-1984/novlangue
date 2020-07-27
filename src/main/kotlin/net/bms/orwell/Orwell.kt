@@ -11,6 +11,7 @@ import java.io.*
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
+import kotlin.random.Random
 
 /**
  * Variable storage
@@ -35,7 +36,7 @@ val module: ModuleBuilder = ModuleBuilder()
 /**
  * IR main function
  */
-val mainFun: FunctionBuilder = module.createMainFunction()
+lateinit var mainFun: FunctionBuilder
 
 /**
  * Main function
@@ -46,12 +47,17 @@ fun main(args: Array<String>) {
     println("Sutter's Orwell Compiler v${properties.getProperty("version")}")
 
     if (args.isNotEmpty()) {
+        mainFun = if (!args.contains("-noMain"))
+            module.createMainFunction()
+        else
+            module.createFunction("__INTERNAL_${Random.nextInt()}_", I32Type, listOf())
         val helpers = !args.contains("-noStd")
 
         try {
             module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
             FileReader(args[0]).also { reader -> runOrwell(reader, true, helpers) }.close()
             FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).apply { write(module.IRCode().trim()) }.close()
+            println("Complete.")
             return
         } catch (e: FileNotFoundException) {
             println("ERROR: $e; dropping into a REPL...")
@@ -88,7 +94,7 @@ fun main(args: Array<String>) {
 @Suppress("SameParameterValue")
 private fun runOrwell(reader: Reader, compile: Boolean = false, helpers: Boolean = false) {
     val tree = OrwellVisitor().visit(OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader)))).top())
-    if (compile) IRVisitor(finally = true, helperFuncs = helpers).visit(tree)
+    if (compile) IRVisitor(mainFun, finally = true, helperFuncs = helpers).visit(tree)
 }
 
 /* TODO: fix listBindings for new variable and function storage

@@ -3,7 +3,7 @@ package net.bms.orwell.tree
 import OrwellBaseVisitor
 import OrwellLexer
 import OrwellParser
-import me.tomassetti.kllvm.FloatComparisonType
+import me.tomassetti.kllvm.IntComparisonType
 
 /**
  * Creates an AST from a the ANTLR parse tree
@@ -38,6 +38,13 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
             id = (ctx?.name?.text ?: return@apply)
             value = null
             isNew = true
+            type =
+                if (ctx.type == null) ValTypes.INT
+                else when (ctx.type.text) {
+                    "string" -> ValTypes.STRING
+                    "double" -> ValTypes.DOUBLE
+                    else -> ValTypes.INT
+                }
         }
 
     /**
@@ -48,6 +55,13 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
             id = (ctx?.val_dec()?.name?.text ?: return@apply)
             value = null
             isNew = true
+            type =
+                if (ctx.val_dec().type == null) ValTypes.INT
+                else when (ctx.val_dec().type.text) {
+                    "string" -> ValTypes.STRING
+                    "double" -> ValTypes.DOUBLE
+                    else -> ValTypes.INT
+                }
         }
 
     /**
@@ -111,12 +125,25 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
                 ValNode().let {
                     it.value = null
                     it.id = ctx.fun_def().names[i].text
+                    it.type =
+                        when (ctx.fun_def().types[i].text) {
+                            "string" -> ValTypes.STRING
+                            "double" -> ValTypes.DOUBLE
+                            else -> ValTypes.INT
+                        }
                     arg.add(it)
                 }
             }
             `fun` = ctx.fun_def().name.text
-            ctx.fun_def().top().forEach { body += it }
-            returnExpr = ctx.fun_def().e()
+            returnType =
+                if (ctx.fun_def().type == null) ValTypes.INT
+                else when (ctx.fun_def().type.text) {
+                    "string" -> ValTypes.STRING
+                    "double" -> ValTypes.DOUBLE
+                    else -> ValTypes.INT
+                }
+            ctx.fun_def().top().forEach { body.list += it }
+            body.returnExpr = ctx.fun_def().e()
         }
 
     /**
@@ -145,13 +172,13 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
             left = visit(ctx?.left).toValNode()
             right = visit(ctx?.right).toValNode()
             type = when (ctx?.op?.text) {
-                "==" -> FloatComparisonType.Equal
-                "!=" -> FloatComparisonType.NotEqual
-                ">" -> FloatComparisonType.GreaterThan
-                "<" -> FloatComparisonType.LessThan
-                ">=" -> FloatComparisonType.GreaterThanOrEqual
-                "<=" -> FloatComparisonType.LessThanOrEqual
-                else -> FloatComparisonType.Equal
+                "==" -> IntComparisonType.Equal
+                "!=" -> IntComparisonType.NotEqual
+                ">" -> IntComparisonType.GreaterThan
+                "<" -> IntComparisonType.LessThan
+                ">=" -> IntComparisonType.GreaterThanOrEqual
+                "<=" -> IntComparisonType.LessThanOrEqual
+                else -> IntComparisonType.Equal
             }
         }
 
