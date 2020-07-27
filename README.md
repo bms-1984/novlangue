@@ -7,25 +7,25 @@
 Add `-noStd` to prevent Orwell from expecting C library routines (currently just `printf`).
 Add `-noMain` to prevent Orwell from defining a main function, for linkage purposes.
 
-#####Examples
-######Interpreted IR
+####Examples
+**Interpreted IR**
 ```
 java -jar orwell-0.1.3.jar code.sw
 lli code.ll
 ```
-######Native Executable
+**Native Executable**
 ```
 java -jar orwell-0.1.3.jar code.sw
 llc -filetype=obj code.ll
 clang code.o -o code
 ```
-######Freestanding Native Executable
+**Freestanding Native Executable**
 ```
 java -jar orwell-0.1.3.jar code.sw -noStd
 llc -filetype=obj code.ll
 clang code.o -o code -nostdlib
 ```
-######Called from C
+**Called from C**
 ```
 java -jar orwell-0.1.3.jar code.sw -noMain
 llc -filetype=obj code.ll
