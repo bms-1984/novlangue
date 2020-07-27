@@ -37,4 +37,4 @@ _**TODO:** Outline the language._
 
 ## 4. Obtaining Orwell
 One can build an executable Orwell jarfile from source using `./gradlew jar` on Unix-like systems (Linux, MacOS) and `gradlew.bat jar` on Windows.
-Periodically, executables are released through the repository.
+Periodically, we release executables through the repository.
