@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.4-M3"
+    kotlin("jvm") version "1.4.0-rc"
     id("org.jetbrains.dokka") version "0.10.1"
     application
     jacoco
@@ -58,7 +58,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.12")
-    implementation("me.tomassetti:kllvm:0.1.2-SNAPSHOT")
+    implementation("me.tomassetti:kllvm:0.1.3-SNAPSHOT")
 
 }
 

@@ -20,7 +20,7 @@ open class IRVisitor(
     private val exitBlock: BlockBuilder? = null
 ) {
 
-    internal fun visit(node: Node?): Value = when (node) {
+    internal open fun visit(node: Node?): Value = when (node) {
         is AdditionNode -> visit(node)
         is SubtractionNode -> visit(node)
         is MultiplicationNode -> visit(node)
@@ -37,18 +37,23 @@ open class IRVisitor(
         else -> Null(VoidType)
     }
 
-    fun getUniqueID(title: String = "") =
+    /**
+     * Returns a unique label
+     *
+     * @param title optional custom string to insert into label.
+     */
+    fun getUniqueID(title: String = ""): String =
         if (title.isEmpty()) "_INTERNAL_${func.name}_${func.tmpIndex()}"
         else "_INTERNAL_${func.name.toUpperCase()}_${title.toUpperCase()}_${func.tmpIndex()}"
 
-    private fun visit(node: BodyNode): Value {
-        node.list.forEach { visit(OrwellVisitor().visit(it)) }
+    internal open fun visit(node: BodyNode): Value {
+        node.list.forEach { visit(CodeVisitor().visit(it)) }
         if (node.returnExpr != null)
-            block.addInstruction(Return(visit(OrwellVisitor().visit(node.returnExpr))))
+            block.addInstruction(Return(visit(CodeVisitor().visit(node.returnExpr))))
         return Null()
     }
 
-    private fun visit(node: MasterNode): Value {
+    internal open fun visit(node: MasterNode): Value {
         if (helperFuncs) {
             val print = module.createFunction("print", I32Type, listOf(I32Type))
             funStore += print
@@ -90,24 +95,24 @@ open class IRVisitor(
         return Null()
     }
 
-    private fun visit(node: CompNode): Value =
+    internal open fun visit(node: CompNode): Value =
         block.tempValue(IntComparison(node.type, visit(node.left), visit(node.right))).reference()
 
-    private fun visit(node: AdditionNode): Value =
+    internal open fun visit(node: AdditionNode): Value =
         block.tempValue(IntAddition(visit(node.left), visit(node.right))).reference()
 
-    private fun visit(node: SubtractionNode): Value =
+    internal open fun visit(node: SubtractionNode): Value =
         block.tempValue(IntSubtraction(visit(node.left), visit(node.right))).reference()
 
-    private fun visit(node: MultiplicationNode): Value =
+    internal open fun visit(node: MultiplicationNode): Value =
         block.tempValue(IntMultiplication(visit(node.left), visit(node.right))).reference()
 
-    private fun visit(node: DivisionNode): Value =
+    internal open fun visit(node: DivisionNode): Value =
         block.tempValue(SignedIntDivision(visit(node.left), visit(node.right))).reference()
 
-    private fun visit(node: NegateNode): Value = IntConst(-(visit(node.innerNode) as IntConst).value, I32Type)
-    private fun visit(node: NumberNode): Value = IntConst(node.value.toInt(), I32Type)
-    private fun visit(node: ValNode): Value {
+    internal open fun visit(node: NegateNode): Value = IntConst(-(visit(node.innerNode) as IntConst).value, I32Type)
+    internal open fun visit(node: NumberNode): Value = IntConst(node.value.toInt(), I32Type)
+    internal open fun visit(node: ValNode): Value {
         if (node.id.isEmpty()) return visit(node.value)
         else if (node.value != null && node.isNew) {
             if (valStore.any { it.name == node.id })
@@ -141,7 +146,7 @@ open class IRVisitor(
         }
     }
 
-    private fun visit(node: FunCallNode): Value {
+    internal open fun visit(node: FunCallNode): Value {
         val args = Array(node.args.size) { visit(node.args[it]) }
 
         if (!funStore.any { it.name == node.`fun` }) {
@@ -166,7 +171,7 @@ open class IRVisitor(
                         ((funValStore[node.`fun`]
                             ?: return Null())[index].type == Pointer(I8Type) && valNode.type == ValTypes.STRING))
             ) {
-                println("\tERROR: Function argument mismatch.")
+                println("\tERROR: Function parameter mismatch at argument ${index + 1}.")
                 return Null()
             }
         }
@@ -175,7 +180,7 @@ open class IRVisitor(
         return block.tempValue(inst).reference()
     }
 
-    private fun visit(node: FunDefNode): Value {
+    internal open fun visit(node: FunDefNode): Value {
         if (funStore.any { it.name == node.`fun` }) {
             println("\tERROR: The function ${node.`fun`} already exists.")
             return Null()

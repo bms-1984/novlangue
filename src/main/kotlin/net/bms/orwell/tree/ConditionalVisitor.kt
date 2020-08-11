@@ -5,6 +5,15 @@ import me.tomassetti.kllvm.FunctionBuilder
 import me.tomassetti.kllvm.IfInstruction
 import me.tomassetti.kllvm.JumpInstruction
 
+/**
+ * Visitor for whiles and ifs
+ *
+ * @property func function containing the code
+ * @property entryBlock jump from here
+ * @property exitBlock jump to and continue execution here
+ * @property trueBlock jump here if true
+ * @property falseBlock jump here if false
+ */
 class ConditionalVisitor(
     private val func: FunctionBuilder, private val entryBlock: BlockBuilder,
     private var exitBlock: BlockBuilder, private val trueBlock: BlockBuilder,
@@ -41,6 +50,6 @@ class ConditionalVisitor(
 
     private fun visitBlock(node: BodyNode) {
         if (node.list.isNotEmpty())
-            node.list.forEach { visit(OrwellVisitor().visitTop(it)) }
+            node.list.forEach { visit(CodeVisitor().visitTop(it)) }
     }
 }

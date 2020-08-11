@@ -11,7 +11,7 @@ import me.tomassetti.kllvm.IntComparisonType
  * @author Ben M. Sutter
  * @since 0.1.0
  */
-open class OrwellVisitor : OrwellBaseVisitor<Node>() {
+open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Whole program
      */
@@ -40,11 +40,7 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
             isNew = true
             type =
                 if (ctx.type == null) ValTypes.INT
-                else when (ctx.type.text) {
-                    "string" -> ValTypes.STRING
-                    "double" -> ValTypes.DOUBLE
-                    else -> ValTypes.INT
-                }
+                else ValTypes.valueOf(ctx.type.text)
         }
 
     /**
@@ -57,11 +53,7 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
             isNew = true
             type =
                 if (ctx.val_dec().type == null) ValTypes.INT
-                else when (ctx.val_dec().type.text) {
-                    "string" -> ValTypes.STRING
-                    "double" -> ValTypes.DOUBLE
-                    else -> ValTypes.INT
-                }
+                else ValTypes.valueOf(ctx.val_dec().type.text)
         }
 
     /**
@@ -125,23 +117,14 @@ open class OrwellVisitor : OrwellBaseVisitor<Node>() {
                 ValNode().let {
                     it.value = null
                     it.id = ctx.fun_def().names[i].text
-                    it.type =
-                        when (ctx.fun_def().types[i].text) {
-                            "string" -> ValTypes.STRING
-                            "double" -> ValTypes.DOUBLE
-                            else -> ValTypes.INT
-                        }
+                    it.type = ValTypes.valueOf(ctx.fun_def().types[i].text)
                     arg.add(it)
                 }
             }
             `fun` = ctx.fun_def().name.text
             returnType =
                 if (ctx.fun_def().type == null) ValTypes.INT
-                else when (ctx.fun_def().type.text) {
-                    "string" -> ValTypes.STRING
-                    "double" -> ValTypes.DOUBLE
-                    else -> ValTypes.INT
-                }
+                else ValTypes.valueOf(ctx.fun_def().type.text)
             ctx.fun_def().top().forEach { body.list += it }
             body.returnExpr = ctx.fun_def().e()
         }

@@ -3,8 +3,9 @@ package net.bms.orwell
 import OrwellLexer
 import OrwellParser
 import me.tomassetti.kllvm.*
+import net.bms.orwell.tree.CodeVisitor
 import net.bms.orwell.tree.IRVisitor
-import net.bms.orwell.tree.OrwellVisitor
+import net.bms.orwell.tree.REPLVisitor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.*
@@ -48,11 +49,11 @@ fun main(args: Array<String>) {
     properties.load(object {}.javaClass.classLoader.getResourceAsStream("orwell.properties"))
     println("Sutter's Orwell Compiler v${properties.getProperty("version")}")
 
+    mainFun = module.createMainFunction()
+
     if (args.isNotEmpty()) {
-        mainFun = if (!args.contains("-noMain"))
-            module.createMainFunction()
-        else
-            module.createFunction("__INTERNAL_${Random.nextUInt()}_", I32Type, listOf())
+        if (args.contains("-noMain"))
+            mainFun = module.createFunction("__INTERNAL_${Random.nextUInt()}_", I32Type, listOf())
         val helpers = !args.contains("-noStd")
 
         try {
@@ -64,68 +65,62 @@ fun main(args: Array<String>) {
         } catch (e: FileNotFoundException) {
             println("ERROR: $e; dropping into a REPL...")
         }
-    } else println("ERROR: REPL Mode is not currently available.")
-
+        runREPL(helpers)
+    } else {
+        runREPL()
+    }
     return
-/* TODO:: reimplement REPL
+}
+
+@Suppress("SameParameterValue")
+private fun runOrwell(reader: Reader, compile: Boolean = false, helpers: Boolean = true) {
+    val tree = CodeVisitor().visit(OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader)))).top())
+    if (compile) IRVisitor(mainFun, finally = true, helperFuncs = helpers).visit(tree)
+    else REPLVisitor(mainFun, helperFuncs = helpers).visit(tree)
+}
+
+private fun listBindings() {
+    if (funStore.isEmpty()) {
+        println("No functions have been bound.")
+    } else {
+        println("Functions:")
+        for (f in funStore) {
+            var params = ""
+            f.paramTypes.forEachIndexed { index, type ->
+                params += if (index == 0) type.IRCode() else ", ${type.IRCode()}"
+            }
+            println("${f.name}(${params}): ${f.returnType.IRCode()}")
+        }
+    }
+}
+
+private fun runREPL(helpers: Boolean = true) {
+    println("WARNING: REPL MODE IS CURRENTLY INCOMPLETE")
     println("For assistance, use ;help.\n")
-    while(true) {
+    while (true) {
         print("orwell> ")
-        val line = readLine() ?: break
+        val line = readLine() ?: return
         if (line.isBlank()) continue
         if (line[0] == ';') {
-            if (line.toLowerCase().contains("help"))
-            {
+            if (line.toLowerCase().contains("help")) {
                 getHelp()
                 continue
             }
             if (line.toLowerCase().contains("quit")) {
-                break
+                return
             }
-            if (line.toLowerCase().contains("list"))
-            {
+            if (line.toLowerCase().contains("list")) {
                 listBindings()
                 continue
             }
-        }
-        runOrwell(line)
-    }
-*/
-}
-
-@Suppress("SameParameterValue")
-private fun runOrwell(reader: Reader, compile: Boolean = false, helpers: Boolean = false) {
-    val tree = OrwellVisitor().visit(OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader)))).top())
-    if (compile) IRVisitor(mainFun, finally = true, helperFuncs = helpers).visit(tree)
-}
-
-/* TODO: fix listBindings for new variable and function storage
-private fun listBindings() {
-    if (valStore.isEmpty()) {
-        println("No variables have been bound.\n")
-    }
-    else {
-        println("Variables:")
-        for ((k, v) in valStore)
-            println("$k -> ${(v as FloatConst).value}")
-    }
-    if (funStore.isEmpty()) {
-        println("No functions have been bound.")
-    }
-    else {
-        println("Functions:")
-        for (k in funStore.keys) {
-            println(k)
-        }
+        } else runOrwell(StringReader(line), helpers = helpers)
     }
 }
-*/
 
-/*
+
 private fun getHelp() {
     println("Commands:")
     println(";help -- prints this help dialogue")
     println(";quit -- exits the REPL")
     println(";list -- lists current bindings")
 }
-*/
