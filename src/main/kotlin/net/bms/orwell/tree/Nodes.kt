@@ -1,7 +1,7 @@
 package net.bms.orwell.tree
 
 import OrwellParser
-import me.tomassetti.kllvm.IntComparisonType
+import me.tomassetti.kllvm.ComparisonType
 
 /**
  * AST Node
@@ -16,6 +16,8 @@ abstract class Node {
         ValNode().apply {
             id = ""
             value = this@Node
+            if (this@Node is NumberNode) type = this@Node.type
+            else if (this@Node is ValNode) type = this@Node.type
         }
 }
 
@@ -104,10 +106,11 @@ class FunCallNode : Node() {
  * Node type for all numbers
  *
  * @property value number.
+ * @property type datatype;
  */
 class NumberNode : Node() {
     var value: Double = 0.0
-    // var type: ValTypes = ValTypes.INT
+    var type: ValTypes = ValTypes.INT
 }
 
 /**
@@ -127,6 +130,8 @@ class ValNode : Node() {
 
 /**
  * Types
+ *
+ * @property type text name.
  */
 enum class ValTypes(val type: String) {
     /**
@@ -185,6 +190,6 @@ class BodyNode : Node() {
 class CompNode : Node() {
     var left: ValNode = ValNode()
     var right: ValNode = ValNode()
-    var type: IntComparisonType = IntComparisonType.Equal
+    var type: ComparisonType = ComparisonType.IntEqual
 }
 

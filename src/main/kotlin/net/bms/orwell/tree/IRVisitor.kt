@@ -46,27 +46,75 @@ open class IRVisitor(
         if (title.isEmpty()) "_INTERNAL_${func.name}_${func.tmpIndex()}"
         else "_INTERNAL_${func.name.toUpperCase()}_${title.toUpperCase()}_${func.tmpIndex()}"
 
+    private fun mangleFunName(name: String, vararg types: Type = arrayOf()): String {
+        var ret = name
+        types.forEach { ret += "_${it.IRCode()}" }
+        return ret.toUpperCase()
+    }
+
     internal open fun visit(node: BodyNode): Value {
         node.list.forEach { visit(CodeVisitor().visit(it)) }
         if (node.returnExpr != null)
             block.addInstruction(Return(visit(CodeVisitor().visit(node.returnExpr))))
+        else
+            block.addInstruction(
+                Return(
+                    when (func.returnType) {
+                        DoubleType -> DoubleConst(0.0, func.returnType)
+                        else -> IntConst(0, func.returnType)
+                    }
+                )
+            )
+
         return Null()
     }
 
     internal open fun visit(node: MasterNode): Value {
         if (helperFuncs) {
-            val print = module.createFunction("print", I32Type, listOf(I32Type))
-            funStore += print
-            val variable = print.entryBlock().addVariable(I32Type, "d")
-            print.entryBlock().assignVariable(variable, print.paramReference(0))
-            funValStore += hashMapOf(print.name to arrayListOf(variable as LocalVariable))
-            print.addInstruction(
+            val printInt = module.createFunction(
+                mangleFunName("print", I32Type), I32Type, listOf(I32Type)
+            )
+            funStore += printInt
+            val variableInt = printInt.entryBlock().addVariable(I32Type, "x")
+            printInt.entryBlock().assignVariable(variableInt, printInt.paramReference(0))
+            funValStore += hashMapOf(printInt to arrayListOf("x" to printInt.paramTypes.first()))
+            printInt.addInstruction(
                 Printf(
-                    print.stringConstForContent("%d\n").reference(),
-                    print.entryBlock().load(variable.reference())
+                    printInt.stringConstForContent("%d\n").reference(),
+                    printInt.paramReference(0)
                 )
             )
-            print.addInstruction(Return(print.entryBlock().load(variable.reference())))
+            printInt.addInstruction(ReturnInt(0))
+
+            val printDouble = module.createFunction(
+                mangleFunName("print", DoubleType), I32Type, listOf(DoubleType)
+            )
+            funStore += printDouble
+            val variableDouble = printDouble.entryBlock().addVariable(DoubleType, "x")
+            printDouble.entryBlock().assignVariable(variableDouble, printDouble.paramReference(0))
+            funValStore += hashMapOf(printDouble to arrayListOf("x" to printDouble.paramTypes.first()))
+            printDouble.addInstruction(
+                Printf(
+                    printDouble.stringConstForContent("%f\n").reference(),
+                    printDouble.paramReference(0)
+                )
+            )
+            printDouble.addInstruction(ReturnInt(0))
+
+//            val printString = module.createFunction(
+//                mangleFunName("print", Pointer(I8Type)), I32Type, listOf(Pointer(I8Type))
+//            )
+//            funStore += printString
+//            val variableString = printString.entryBlock().addVariable(Pointer(I8Type), "x")
+//            printString.entryBlock().assignVariable(variableString, printString.paramReference(0))
+//            funValStore += hashMapOf(printString to arrayListOf("x" to printString.paramTypes.first()))
+//            printString.addInstruction(
+//                Printf(
+//                    printString.stringConstForContent("%s\n").reference(),
+//                    printString.paramReference(0)
+//                )
+//            )
+//            printString.addInstruction(ReturnInt(0))
         }
         node.prog.forEach { visit(it) }
         if (finally) block.addInstruction(ReturnInt(0))
@@ -95,97 +143,99 @@ open class IRVisitor(
         return Null()
     }
 
-    internal open fun visit(node: CompNode): Value =
-        block.tempValue(IntComparison(node.type, visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: CompNode): Value = when (node.left.type) {
+        ValTypes.DOUBLE -> block.tempValue(FloatComparison(node.type, visit(node.left), visit(node.right))).reference()
+        else -> block.tempValue(IntComparison(node.type, visit(node.left), visit(node.right))).reference()
+    }
 
-    internal open fun visit(node: AdditionNode): Value =
-        block.tempValue(IntAddition(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: AdditionNode): Value = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> block.tempValue(FloatAddition(visit(node.left), visit(node.right))).reference()
+        else -> block.tempValue(IntAddition(visit(node.left), visit(node.right))).reference()
+    }
 
-    internal open fun visit(node: SubtractionNode): Value =
-        block.tempValue(IntSubtraction(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: SubtractionNode): Value = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> block.tempValue(FloatSubtraction(visit(node.left), visit(node.right))).reference()
+        else -> block.tempValue(IntSubtraction(visit(node.left), visit(node.right))).reference()
+    }
 
-    internal open fun visit(node: MultiplicationNode): Value =
-        block.tempValue(IntMultiplication(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: MultiplicationNode): Value = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> block.tempValue(FloatMultiplication(visit(node.left), visit(node.right))).reference()
+        else -> block.tempValue(IntMultiplication(visit(node.left), visit(node.right))).reference()
+    }
 
-    internal open fun visit(node: DivisionNode): Value =
-        block.tempValue(SignedIntDivision(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: DivisionNode): Value = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> block.tempValue(FloatDivision(visit(node.left), visit(node.right))).reference()
+        else -> block.tempValue(SignedIntDivision(visit(node.left), visit(node.right))).reference()
+    }
 
-    internal open fun visit(node: NegateNode): Value = IntConst(-(visit(node.innerNode) as IntConst).value, I32Type)
-    internal open fun visit(node: NumberNode): Value = IntConst(node.value.toInt(), I32Type)
+    internal open fun visit(node: NegateNode): Value = when (node.innerNode.toValNode().type) {
+        ValTypes.DOUBLE -> DoubleConst(-(visit(node.innerNode) as DoubleConst).value)
+        else -> IntConst(-(visit(node.innerNode) as IntConst).value, I32Type)
+    }
+
+    internal open fun visit(node: NumberNode): Value = when (node.type) {
+        ValTypes.DOUBLE -> DoubleConst(node.value)
+        else -> IntConst(node.value.toInt(), I32Type)
+    }
+
     internal open fun visit(node: ValNode): Value {
         if (node.id.isEmpty()) return visit(node.value)
         else if (node.value != null && node.isNew) {
             if (valStore.any { it.name == node.id })
                 println("\tWARNING: Variable ${node.id} already exists. You should not use `val` here.")
-            valStore +=
-                when (node.type) {
-                    ValTypes.INT -> block.addVariable(I32Type, node.id) as LocalVariable
-                    ValTypes.DOUBLE -> block.addVariable(DoubleType, node.id) as LocalVariable
-                    ValTypes.STRING -> block.addVariable(Pointer(I8Type), node.id) as LocalVariable
-                }
+            valStore += when (node.type) {
+                ValTypes.INT -> block.addVariable(I32Type, node.id) as LocalVariable
+                ValTypes.DOUBLE -> block.addVariable(DoubleType, node.id) as LocalVariable
+                ValTypes.STRING -> block.addVariable(Pointer(I8Type), node.id) as LocalVariable
+            }
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
-
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
         } else if (node.value != null && !node.isNew) {
             if (!valStore.any { it.name == node.id }) {
                 println("\tERROR: The variable ${node.id} does not exist. Try using `val`.")
-
                 return Null()
             }
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
-
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
-        } else if (func.name in funValStore && funValStore[func.name]?.any { it.name == node.id }!!)
-            return block.tempValue(Load(funValStore[func.name]?.find { it.name == node.id }!!.reference())).reference()
-        else if (valStore.any { it.name == node.id })
+        } else if (func in funValStore && funValStore[func]?.any { it.first == node.id }!!) {
+            val index = funValStore[func]?.indexOf(funValStore[func]?.find {
+                it.first == node.id
+            })
+            return index?.let { func.paramReference(it) }!!
+        } else if (valStore.any { it.name == node.id })
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
         else {
             println("\tERROR: The variable ${node.id} does not exist.")
-
             return Null()
         }
     }
 
     internal open fun visit(node: FunCallNode): Value {
         val args = Array(node.args.size) { visit(node.args[it]) }
+        val name = mangleFunName(node.`fun`, *args.map { it.type() }.toTypedArray())
 
-        if (!funStore.any { it.name == node.`fun` }) {
+        if (!funStore.any { it.name == name }) {
             println("\tERROR: The function ${node.`fun`} does not exist.")
 
             return Null()
         }
-        if (node.args.size != funValStore[node.`fun`]?.size) {
-            println(
-                "\tERROR: The function ${node.`fun`} takes ${funValStore[node.`fun`]?.size} arguments, " +
-                        "but you supplied ${node.args.size}."
-            )
-
-            return Null()
-        }
-        node.args.forEachIndexed { index, valNode ->
-            if (
-                !(((funValStore[node.`fun`]
-                    ?: return Null())[index].type == DoubleType && valNode.type == ValTypes.DOUBLE) ||
-                        ((funValStore[node.`fun`]
-                            ?: return Null())[index].type == I32Type && valNode.type == ValTypes.INT) ||
-                        ((funValStore[node.`fun`]
-                            ?: return Null())[index].type == Pointer(I8Type) && valNode.type == ValTypes.STRING))
-            ) {
-                println("\tERROR: Function parameter mismatch at argument ${index + 1}.")
+        args.forEachIndexed { index, value ->
+            val type = (funValStore[funStore.find { it.name == name }] ?: return Null())[index].second
+            if (type != value.type()) {
+                println(
+                    "\tERROR: Argument ${index + 1} of function ${node.`fun`} " +
+                            "should be of type ${typeNameMap[type]?.type}, " +
+                            "but supplied argument is of type ${typeNameMap[value.type()]?.type}."
+                )
                 return Null()
             }
         }
 
-        val inst = Call(I32Type, node.`fun`, *args)
+        val inst = Call(funStore.find { it.name == name }!!.returnType, name, *args)
         return block.tempValue(inst).reference()
     }
 
     internal open fun visit(node: FunDefNode): Value {
-        if (funStore.any { it.name == node.`fun` }) {
-            println("\tERROR: The function ${node.`fun`} already exists.")
-            return Null()
-        }
-
         val names = Array(node.arg.size) { node.arg[it].id }
         val list = List(node.arg.size) {
             when (node.arg[it].type) {
@@ -194,24 +244,30 @@ open class IRVisitor(
                 ValTypes.STRING -> Pointer(I8Type)
             }
         }
+        val name = mangleFunName(node.`fun`, *list.toTypedArray())
+
+        if (funStore.any { it.name == name }) {
+            println("\tERROR: The function ${node.`fun`} already exists.")
+            return Null()
+        }
         val funct =
             when (node.returnType) {
-                ValTypes.INT -> module.createFunction(node.`fun`, I32Type, list)
-                ValTypes.DOUBLE -> module.createFunction(node.`fun`, DoubleType, list)
-                ValTypes.STRING -> module.createFunction(node.`fun`, Pointer(I8Type), list)
+                ValTypes.INT -> module.createFunction(name, I32Type, list)
+                ValTypes.DOUBLE -> module.createFunction(name, DoubleType, list)
+                ValTypes.STRING -> module.createFunction(name, Pointer(I8Type), list)
             }
 
         funStore += funct
-        if (!funValStore.containsKey(node.`fun`)) funValStore[node.`fun`] = ArrayList()
+        if (!funValStore.containsKey(funct)) funValStore[funct] = ArrayList()
         names.forEachIndexed { index, s ->
             val variable =
                 when (node.arg[index].type) {
-                    ValTypes.INT -> funct.entryBlock().addVariable(I32Type, s) as LocalVariable
-                    ValTypes.DOUBLE -> funct.entryBlock().addVariable(DoubleType, s) as LocalVariable
-                    ValTypes.STRING -> funct.entryBlock().addVariable(Pointer(I8Type), s) as LocalVariable
+                    ValTypes.INT -> funct.entryBlock().addVariable(I32Type, s)
+                    ValTypes.DOUBLE -> funct.entryBlock().addVariable(DoubleType, s)
+                    ValTypes.STRING -> funct.entryBlock().addVariable(Pointer(I8Type), s)
                 }
             funct.entryBlock().assignVariable(variable, funct.paramReference(index))
-            funValStore[node.`fun`]?.add(variable)
+            funValStore[funct]?.add(s to list[index])
         }
 
         IRVisitor(funct).visit(node.body)

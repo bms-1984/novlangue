@@ -3,7 +3,7 @@ package net.bms.orwell.tree
 import OrwellBaseVisitor
 import OrwellLexer
 import OrwellParser
-import me.tomassetti.kllvm.IntComparisonType
+import me.tomassetti.kllvm.ComparisonType
 
 /**
  * Creates an AST from a the ANTLR parse tree
@@ -27,6 +27,9 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
                 id = it.id
                 value = visit(ctx?.val_def()?.`val`)
                 isNew = true
+                type =
+                    if (ctx?.val_def()?.val_dec()?.type == null) ValTypes.INT
+                    else ValTypes.valueOf(ctx.val_def()?.val_dec()?.type?.text?.toUpperCase() ?: return@let)
             }
         }
 
@@ -40,7 +43,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
             isNew = true
             type =
                 if (ctx.type == null) ValTypes.INT
-                else ValTypes.valueOf(ctx.type.text)
+                else ValTypes.valueOf(ctx.type.text.toUpperCase())
         }
 
     /**
@@ -53,7 +56,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
             isNew = true
             type =
                 if (ctx.val_dec().type == null) ValTypes.INT
-                else ValTypes.valueOf(ctx.val_dec().type.text)
+                else ValTypes.valueOf(ctx.val_dec().type.text.toUpperCase())
         }
 
     /**
@@ -66,10 +69,22 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
         }
 
     /**
-     * Number
+     * Int number
      */
-    override fun visitNumber(ctx: OrwellParser.NumberContext?): Node =
-        NumberNode().apply { value = (ctx?.`val`?.text?.toDouble() ?: return@apply) }
+    override fun visitIntNumber(ctx: OrwellParser.IntNumberContext?): Node =
+        NumberNode().apply {
+            value = (ctx?.`val`?.text?.toDouble() ?: return@apply)
+            type = ValTypes.INT
+        }
+
+    /**
+     * Float number
+     */
+    override fun visitFloatNumber(ctx: OrwellParser.FloatNumberContext?): Node =
+        NumberNode().apply {
+            value = (ctx?.`val`?.text?.toDouble() ?: return@apply)
+            type = ValTypes.DOUBLE
+        }
 
     /**
      * Negative number
@@ -117,16 +132,18 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
                 ValNode().let {
                     it.value = null
                     it.id = ctx.fun_def().names[i].text
-                    it.type = ValTypes.valueOf(ctx.fun_def().types[i].text)
+                    it.type = ValTypes.valueOf(ctx.fun_def().types[i].text.toUpperCase())
                     arg.add(it)
                 }
             }
             `fun` = ctx.fun_def().name.text
             returnType =
                 if (ctx.fun_def().type == null) ValTypes.INT
-                else ValTypes.valueOf(ctx.fun_def().type.text)
-            ctx.fun_def().top().forEach { body.list += it }
-            body.returnExpr = ctx.fun_def().e()
+                else ValTypes.valueOf(ctx.fun_def().type.text.toUpperCase())
+            ctx.fun_def().top().forEachIndexed { index, topContext ->
+                if (index >= ctx.fun_def().top().size - 1 && topContext.e(0) != null) body.returnExpr = topContext.e(0)
+                else body.list += topContext
+            }
         }
 
     /**
@@ -154,14 +171,21 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
         CompNode().apply {
             left = visit(ctx?.left).toValNode()
             right = visit(ctx?.right).toValNode()
-            type = when (ctx?.op?.text) {
-                "==" -> IntComparisonType.Equal
-                "!=" -> IntComparisonType.NotEqual
-                ">" -> IntComparisonType.GreaterThan
-                "<" -> IntComparisonType.LessThan
-                ">=" -> IntComparisonType.GreaterThanOrEqual
-                "<=" -> IntComparisonType.LessThanOrEqual
-                else -> IntComparisonType.Equal
+            type = if (left.type == ValTypes.DOUBLE) when (ctx?.op?.text) {
+                "!=" -> ComparisonType.FloatNotEqual
+                ">" -> ComparisonType.FloatGreaterThan
+                "<" -> ComparisonType.FloatLessThan
+                ">=" -> ComparisonType.FloatGreaterThanOrEqual
+                "<=" -> ComparisonType.FloatLessThanOrEqual
+                else -> ComparisonType.FloatEqual
+            }
+            else when (ctx?.op?.text) {
+                "!=" -> ComparisonType.IntNotEqual
+                ">" -> ComparisonType.IntGreaterThan
+                "<" -> ComparisonType.IntLessThan
+                ">=" -> ComparisonType.IntGreaterThanOrEqual
+                "<=" -> ComparisonType.IntLessThanOrEqual
+                else -> ComparisonType.IntEqual
             }
         }
 

@@ -9,16 +9,17 @@ s:
     | if_block #IfBlock
     | while_loop #While;
 e:
-    '-' e #NegExpr
-    | '(' e ')' #ParenExpr
+    fun_call #FunCall
+    | '-' e #NegExpr
     | left=e op=('*'|'/') right=e #BinExpr
     | left=e op=('+'|'-') right=e #BinExpr
-    | val=NUM #Number
+    | '(' e ')' #ParenExpr
+    | val=FLOAT #FloatNumber
+    | val=NUM #IntNumber
     | val=STRING #String
-    | fun_call #FunCall
     | name=ID #Identifier;
 fun_def: 'fun' name=ID '(' (names+=ID ':' types+=ID
-    (',' names+=ID ':' types+=ID)*)? ')' (':' type=ID)?  '{' top* e '}';
+    (',' names+=ID ':' types+=ID)*)? ')' (':' type=ID)?  '{' top+ '}';
 fun_call: name=ID '(' (args+=e (',' args+=e)*)? ')';
 val_dec: 'val'  name=ID (':' type=ID)?;
 val_def: name=val_dec '=' val=e;
@@ -31,7 +32,11 @@ else_statement: 'else' '{' top+ '}';
 while_loop: 'while' '(' comparison ')' '{' top+ '}';
 
 STRING : '"' ( '\\"' | . )*? '"';
-NUM: DIGIT+('.'DIGIT+)?;
+FLOAT: NUM('.'DIGIT+);
+fragment HEXNUM: '0x'[a-fA-F0-9]+;
+fragment BINNUM: '0b'[0-1]+;
+fragment OCTNUM: '0o'[0-7]+;
+NUM: DIGIT+ | OCTNUM | BINNUM | HEXNUM;
 OP_ADD: '+';
 OP_SUB: '-';
 OP_MUL: '*';

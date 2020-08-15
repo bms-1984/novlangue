@@ -6,6 +6,7 @@ import me.tomassetti.kllvm.*
 import net.bms.orwell.tree.CodeVisitor
 import net.bms.orwell.tree.IRVisitor
 import net.bms.orwell.tree.REPLVisitor
+import net.bms.orwell.tree.ValTypes
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.*
@@ -23,7 +24,7 @@ val valStore: ArrayList<LocalVariable> = ArrayList()
 /**
  * Function parameter storage
  */
-val funValStore: HashMap<String, ArrayList<LocalVariable>> = HashMap()
+val funValStore: HashMap<FunctionBuilder, ArrayList<Pair<String, Type>>> = HashMap()
 
 /**
  * Function storage
@@ -39,6 +40,12 @@ val module: ModuleBuilder = ModuleBuilder()
  * IR main function
  */
 lateinit var mainFun: FunctionBuilder
+
+internal val typeNameMap: HashMap<Type, ValTypes> = hashMapOf(
+    I32Type to ValTypes.INT,
+    DoubleType to ValTypes.DOUBLE,
+    Pointer(I8Type) to ValTypes.STRING,
+)
 
 /**
  * Main function
