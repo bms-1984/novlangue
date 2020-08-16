@@ -8,7 +8,7 @@ plugins {
     maven
 }
 
-group = "net.bms.orwell"
+group = "net.bms.novlangue"
 version = "0.1.4"
 
 repositories {
@@ -33,18 +33,18 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/bms-1984/orwell")
+            url = uri("https://maven.pkg.github.com/bms-1984/novlangue")
             credentials {
                 username = System.getenv("GHUSERNAME")
                 password = System.getenv("GHTOKEN")
             }
         }
     }
-    publications { create<MavenPublication>("orwell") { from(components["java"]) } }
+    publications { create<MavenPublication>("novlangue") { from(components["java"]) } }
 }
 
 application {
-    mainClassName = "$group.OrwellKt"
+    mainClassName = "$group.NovlangueKt"
 }
 
 jacoco {

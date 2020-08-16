@@ -1,4 +1,4 @@
-package net.bms.orwell.tree
+package net.bms.novlangue.tree
 
 import me.tomassetti.kllvm.BlockBuilder
 import me.tomassetti.kllvm.FunctionBuilder

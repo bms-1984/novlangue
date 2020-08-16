@@ -1,12 +1,12 @@
-package net.bms.orwell
+package net.bms.novlangue
 
-import OrwellLexer
-import OrwellParser
+import NovlangueLexer
+import NovlangueParser
 import me.tomassetti.kllvm.*
-import net.bms.orwell.tree.CodeVisitor
-import net.bms.orwell.tree.IRVisitor
-import net.bms.orwell.tree.REPLVisitor
-import net.bms.orwell.tree.ValTypes
+import net.bms.novlangue.tree.CodeVisitor
+import net.bms.novlangue.tree.IRVisitor
+import net.bms.novlangue.tree.REPLVisitor
+import net.bms.novlangue.tree.ValTypes
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.*
@@ -53,8 +53,8 @@ internal val typeNameMap: HashMap<Type, ValTypes> = hashMapOf(
 @ExperimentalUnsignedTypes
 fun main(args: Array<String>) {
     val properties = Properties()
-    properties.load(object {}.javaClass.classLoader.getResourceAsStream("orwell.properties"))
-    println("Sutter's Orwell Compiler v${properties.getProperty("version")}")
+    properties.load(object {}.javaClass.classLoader.getResourceAsStream("novlangue.properties"))
+    println("Sutter's Novlangue Compiler v${properties.getProperty("version")}")
 
     mainFun = module.createMainFunction()
 
@@ -65,7 +65,7 @@ fun main(args: Array<String>) {
 
         try {
             module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
-            FileReader(args[0]).also { reader -> runOrwell(reader, true, helpers) }.close()
+            FileReader(args[0]).also { reader -> runNovlangue(reader, true, helpers) }.close()
             FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).apply { write(module.IRCode().trim()) }.close()
             println("Complete.")
             return
@@ -80,8 +80,9 @@ fun main(args: Array<String>) {
 }
 
 @Suppress("SameParameterValue")
-private fun runOrwell(reader: Reader, compile: Boolean = false, helpers: Boolean = true) {
-    val tree = CodeVisitor().visit(OrwellParser(CommonTokenStream(OrwellLexer(CharStreams.fromReader(reader)))).top())
+private fun runNovlangue(reader: Reader, compile: Boolean = false, helpers: Boolean = true) {
+    val tree =
+        CodeVisitor().visit(NovlangueParser(CommonTokenStream(NovlangueLexer(CharStreams.fromReader(reader)))).top())
     if (compile) IRVisitor(mainFun, finally = true, helperFuncs = helpers).visit(tree)
     else REPLVisitor(mainFun, helperFuncs = helpers).visit(tree)
 }
@@ -105,7 +106,7 @@ private fun runREPL(helpers: Boolean = true) {
     println("WARNING: REPL MODE IS CURRENTLY INCOMPLETE")
     println("For assistance, use ;help.\n")
     while (true) {
-        print("orwell> ")
+        print("novlangue> ")
         val line = readLine() ?: return
         if (line.isBlank()) continue
         if (line[0] == ';') {
@@ -120,7 +121,7 @@ private fun runREPL(helpers: Boolean = true) {
                 listBindings()
                 continue
             }
-        } else runOrwell(StringReader(line), helpers = helpers)
+        } else runNovlangue(StringReader(line), helpers = helpers)
     }
 }
 

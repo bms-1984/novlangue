@@ -1,6 +1,6 @@
-package net.bms.orwell.tree
+package net.bms.novlangue.tree
 
-import OrwellParser
+import NovlangueParser
 import me.tomassetti.kllvm.ComparisonType
 
 /**
@@ -176,8 +176,8 @@ class ConditionalNode : Node() {
  * @property returnExpr value to return.
  */
 class BodyNode : Node() {
-    val list: ArrayList<OrwellParser.TopContext> = ArrayList()
-    var returnExpr: OrwellParser.EContext? = null
+    val list: ArrayList<NovlangueParser.TopContext> = ArrayList()
+    var returnExpr: NovlangueParser.EContext? = null
 }
 
 /**

@@ -1,4 +1,4 @@
-grammar Orwell;
+grammar Novlangue;
 top:
     (e|s)+;
 s:

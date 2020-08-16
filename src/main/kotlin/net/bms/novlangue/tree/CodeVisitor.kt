@@ -1,8 +1,8 @@
-package net.bms.orwell.tree
+package net.bms.novlangue.tree
 
-import OrwellBaseVisitor
-import OrwellLexer
-import OrwellParser
+import NovlangueBaseVisitor
+import NovlangueLexer
+import NovlangueParser
 import me.tomassetti.kllvm.ComparisonType
 
 /**
@@ -11,17 +11,17 @@ import me.tomassetti.kllvm.ComparisonType
  * @author Ben M. Sutter
  * @since 0.1.0
  */
-open class CodeVisitor : OrwellBaseVisitor<Node>() {
+open class CodeVisitor : NovlangueBaseVisitor<Node>() {
     /**
      * Whole program
      */
-    override fun visitTop(ctx: OrwellParser.TopContext?): Node =
+    override fun visitTop(ctx: NovlangueParser.TopContext?): Node =
         MasterNode().apply { ctx?.children?.forEach { prog += visit(it) } }
 
     /**
      * Variable definition
      */
-    override fun visitValDef(ctx: OrwellParser.ValDefContext?): Node =
+    override fun visitValDef(ctx: NovlangueParser.ValDefContext?): Node =
         ValNode().apply {
             (visit(ctx?.val_def()?.name) as ValNode).let {
                 id = it.id
@@ -36,7 +36,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Variable declaration inside definition
      */
-    override fun visitVal_dec(ctx: OrwellParser.Val_decContext?): Node =
+    override fun visitVal_dec(ctx: NovlangueParser.Val_decContext?): Node =
         ValNode().apply {
             id = (ctx?.name?.text ?: return@apply)
             value = null
@@ -49,7 +49,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Variable declaration
      */
-    override fun visitValDec(ctx: OrwellParser.ValDecContext?): Node =
+    override fun visitValDec(ctx: NovlangueParser.ValDecContext?): Node =
         ValNode().apply {
             id = (ctx?.val_dec()?.name?.text ?: return@apply)
             value = null
@@ -62,7 +62,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Variable assignment
      */
-    override fun visitAssign(ctx: OrwellParser.AssignContext?): Node =
+    override fun visitAssign(ctx: NovlangueParser.AssignContext?): Node =
         ValNode().apply {
             id = (ctx?.assignment()?.name?.text ?: return@apply)
             value = visit(ctx.assignment()?.`val`)
@@ -71,7 +71,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Int number
      */
-    override fun visitIntNumber(ctx: OrwellParser.IntNumberContext?): Node =
+    override fun visitIntNumber(ctx: NovlangueParser.IntNumberContext?): Node =
         NumberNode().apply {
             value = (ctx?.`val`?.text?.toDouble() ?: return@apply)
             type = ValTypes.INT
@@ -80,7 +80,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Float number
      */
-    override fun visitFloatNumber(ctx: OrwellParser.FloatNumberContext?): Node =
+    override fun visitFloatNumber(ctx: NovlangueParser.FloatNumberContext?): Node =
         NumberNode().apply {
             value = (ctx?.`val`?.text?.toDouble() ?: return@apply)
             type = ValTypes.DOUBLE
@@ -89,24 +89,24 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Negative number
      */
-    override fun visitNegExpr(ctx: OrwellParser.NegExprContext?): Node =
+    override fun visitNegExpr(ctx: NovlangueParser.NegExprContext?): Node =
         NegateNode().apply { innerNode = visit(ctx?.e()) }
 
     /**
      * Binary expression
      */
-    override fun visitBinExpr(ctx: OrwellParser.BinExprContext?): Node =
+    override fun visitBinExpr(ctx: NovlangueParser.BinExprContext?): Node =
         when (ctx?.op?.type) {
-            OrwellLexer.OP_ADD -> {
+            NovlangueLexer.OP_ADD -> {
                 AdditionNode(visit(ctx.left), visit(ctx.right))
             }
-            OrwellLexer.OP_SUB -> {
+            NovlangueLexer.OP_SUB -> {
                 SubtractionNode(visit(ctx.left), visit(ctx.right))
             }
-            OrwellLexer.OP_DIV -> {
+            NovlangueLexer.OP_DIV -> {
                 DivisionNode(visit(ctx.left), visit(ctx.right))
             }
-            OrwellLexer.OP_MUL -> {
+            NovlangueLexer.OP_MUL -> {
                 MultiplicationNode(visit(ctx.left), visit(ctx.right))
             }
             else -> null
@@ -115,18 +115,18 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Parenthetical expression
      */
-    override fun visitParenExpr(ctx: OrwellParser.ParenExprContext?): Node = visit(ctx?.e())
+    override fun visitParenExpr(ctx: NovlangueParser.ParenExprContext?): Node = visit(ctx?.e())
 
     /**
      * Identifier
      */
-    override fun visitIdentifier(ctx: OrwellParser.IdentifierContext?): Node =
+    override fun visitIdentifier(ctx: NovlangueParser.IdentifierContext?): Node =
         ValNode().apply { id = (ctx?.name?.text ?: return@apply) }
 
     /**
      * Function definition
      */
-    override fun visitFunDef(ctx: OrwellParser.FunDefContext?): Node =
+    override fun visitFunDef(ctx: NovlangueParser.FunDefContext?): Node =
         FunDefNode().apply {
             for (i in 0 until (ctx?.fun_def()?.names?.size ?: return@apply)) {
                 ValNode().let {
@@ -149,7 +149,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Function call internal
      */
-    override fun visitFun_call(ctx: OrwellParser.Fun_callContext?): Node =
+    override fun visitFun_call(ctx: NovlangueParser.Fun_callContext?): Node =
         FunCallNode().apply {
             for (e in ctx?.args ?: return@apply) args.add(visit(e).toValNode())
             `fun` = (ctx.name?.text ?: return@apply)
@@ -158,7 +158,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Function call
      */
-    override fun visitFunCall(ctx: OrwellParser.FunCallContext?): Node =
+    override fun visitFunCall(ctx: NovlangueParser.FunCallContext?): Node =
         FunCallNode().apply {
             for (e in ctx?.fun_call()?.args ?: return@apply) args.add(visit(e).toValNode())
             `fun` = (ctx.fun_call()?.name?.text ?: return@apply)
@@ -167,7 +167,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Comparison
      */
-    override fun visitComparison(ctx: OrwellParser.ComparisonContext?): Node =
+    override fun visitComparison(ctx: NovlangueParser.ComparisonContext?): Node =
         CompNode().apply {
             left = visit(ctx?.left).toValNode()
             right = visit(ctx?.right).toValNode()
@@ -192,7 +192,7 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * If chain
      */
-    override fun visitIfBlock(ctx: OrwellParser.IfBlockContext?): Node =
+    override fun visitIfBlock(ctx: NovlangueParser.IfBlockContext?): Node =
         ConditionalNode().apply {
             `true` = visit(ctx?.if_block()?.if_statement()) as BodyNode
             comp = visit(ctx?.if_block()?.if_statement()?.comparison()) as CompNode
@@ -205,13 +205,13 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * If statement
      */
-    override fun visitIf_statement(ctx: OrwellParser.If_statementContext?): Node =
+    override fun visitIf_statement(ctx: NovlangueParser.If_statementContext?): Node =
         BodyNode().apply { ctx?.top()?.forEach { list.add(it) } }
 
     /**
      * Else if statement
      */
-    override fun visitElse_if_statement(ctx: OrwellParser.Else_if_statementContext?): Node =
+    override fun visitElse_if_statement(ctx: NovlangueParser.Else_if_statementContext?): Node =
         ConditionalNode().apply {
             `true` = visit(ctx?.if_statement()) as BodyNode
             comp = visit(ctx?.if_statement()?.comparison()) as CompNode
@@ -220,13 +220,13 @@ open class CodeVisitor : OrwellBaseVisitor<Node>() {
     /**
      * Else statement
      */
-    override fun visitElse_statement(ctx: OrwellParser.Else_statementContext?): Node =
+    override fun visitElse_statement(ctx: NovlangueParser.Else_statementContext?): Node =
         BodyNode().apply { ctx?.top()?.forEach { list.add(it) } }
 
     /**
      * While loop
      */
-    override fun visitWhile(ctx: OrwellParser.WhileContext?): Node =
+    override fun visitWhile(ctx: NovlangueParser.WhileContext?): Node =
         ConditionalNode().apply {
             comp = visit(ctx?.while_loop()?.comparison()) as CompNode
             `true` = BodyNode().apply { ctx?.while_loop()?.top()?.forEach { list.add(it) } }

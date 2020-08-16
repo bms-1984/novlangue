@@ -1,7 +1,7 @@
-package net.bms.orwell.tree
+package net.bms.novlangue.tree
 
 import me.tomassetti.kllvm.*
-import net.bms.orwell.*
+import net.bms.novlangue.*
 
 /**
  * Translator from AST to LLVM IR
