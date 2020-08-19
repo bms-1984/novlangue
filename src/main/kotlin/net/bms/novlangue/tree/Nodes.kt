@@ -22,6 +22,12 @@ abstract class Node {
 }
 
 /**
+ * String
+ * @property str String.
+ */
+class StringNode(val str: String = "") : Node()
+
+/**
  * Top-level node
  *
  * @property prog list of all nodes in the program.

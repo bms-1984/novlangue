@@ -87,6 +87,12 @@ open class CodeVisitor : NovlangueBaseVisitor<Node>() {
         }
 
     /**
+     * String
+     */
+    override fun visitString(ctx: NovlangueParser.StringContext?): Node =
+        StringNode(ctx!!.text.substring(1 until ctx.text.length - 1))
+
+    /**
      * Negative number
      */
     override fun visitNegExpr(ctx: NovlangueParser.NegExprContext?): Node =

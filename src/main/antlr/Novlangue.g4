@@ -33,10 +33,10 @@ while_loop: 'while' '(' comparison ')' '{' top+ '}';
 
 STRING : '"' ( '\\"' | . )*? '"';
 FLOAT: NUM('.'DIGIT+);
-fragment HEXNUM: '0x'[a-fA-F0-9]+;
-fragment BINNUM: '0b'[0-1]+;
-fragment OCTNUM: '0o'[0-7]+;
-NUM: DIGIT+ | OCTNUM | BINNUM | HEXNUM;
+//fragment HEXNUM: '0x'[a-fA-F0-9]+;
+//fragment BINNUM: '0b'[0-1]+;
+//fragment OCTNUM: '0o'[0-7]+;
+NUM: DIGIT+ /*| OCTNUM | BINNUM | HEXNUM*/;
 OP_ADD: '+';
 OP_SUB: '-';
 OP_MUL: '*';

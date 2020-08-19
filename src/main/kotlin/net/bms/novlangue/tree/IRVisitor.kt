@@ -34,6 +34,7 @@ open class IRVisitor(
         is CompNode -> visit(node)
         is MasterNode -> visit(node)
         is BodyNode -> visit(node)
+        is StringNode -> visit(node)
         else -> Null(VoidType)
     }
 
@@ -48,7 +49,7 @@ open class IRVisitor(
 
     private fun mangleFunName(name: String, vararg types: Type = arrayOf()): String {
         var ret = name
-        types.forEach { ret += "_${it.IRCode()}" }
+        types.forEach { ret += "_${it.IRCode().filter { c -> c.isLetterOrDigit() }}" }
         return ret.toUpperCase()
     }
 
@@ -101,20 +102,20 @@ open class IRVisitor(
             )
             printDouble.addInstruction(ReturnInt(0))
 
-//            val printString = module.createFunction(
-//                mangleFunName("print", Pointer(I8Type)), I32Type, listOf(Pointer(I8Type))
-//            )
-//            funStore += printString
-//            val variableString = printString.entryBlock().addVariable(Pointer(I8Type), "x")
-//            printString.entryBlock().assignVariable(variableString, printString.paramReference(0))
-//            funValStore += hashMapOf(printString to arrayListOf("x" to printString.paramTypes.first()))
-//            printString.addInstruction(
-//                Printf(
-//                    printString.stringConstForContent("%s\n").reference(),
-//                    printString.paramReference(0)
-//                )
-//            )
-//            printString.addInstruction(ReturnInt(0))
+            val printString = module.createFunction(
+                mangleFunName("print", Pointer(I8Type)), I32Type, listOf(Pointer(I8Type))
+            )
+            funStore += printString
+            val variableString = printString.entryBlock().addVariable(Pointer(I8Type), "x")
+            printString.entryBlock().assignVariable(variableString, printString.paramReference(0))
+            funValStore += hashMapOf(printString to arrayListOf("x" to printString.paramTypes.first()))
+            printString.addInstruction(
+                Printf(
+                    printString.stringConstForContent("%s\n").reference(),
+                    printString.paramReference(0)
+                )
+            )
+            printString.addInstruction(ReturnInt(0))
         }
         node.prog.forEach { visit(it) }
         if (finally) block.addInstruction(ReturnInt(0))
@@ -177,6 +178,8 @@ open class IRVisitor(
         ValTypes.DOUBLE -> DoubleConst(node.value)
         else -> IntConst(node.value.toInt(), I32Type)
     }
+
+    private fun visit(node: StringNode): Value = block.stringConstForContent(node.str).reference()
 
     internal open fun visit(node: ValNode): Value {
         if (node.id.isEmpty()) return visit(node.value)

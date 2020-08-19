@@ -1,11 +1,10 @@
 plugins {
-    kotlin("jvm") version "1.4.0-rc"
-    id("org.jetbrains.dokka") version "0.10.1"
+    kotlin("jvm") version "1.4.0"
+    id("org.jetbrains.dokka") version "1.4.0-rc"
     application
     jacoco
     antlr
     `maven-publish`
-    maven
 }
 
 group = "net.bms.novlangue"
@@ -14,6 +13,7 @@ version = "0.1.4"
 repositories {
     mavenCentral()
     jcenter()
+    maven("https://dl.bintray.com/kotlin/dokka")
     maven("https://jitpack.io")
     maven("https://dl.bintray.com/kotlin/kotlin-eap")
     maven("https://kotlin.bintray.com/kotlinx")
@@ -52,7 +52,6 @@ jacoco {
 }
 
 dependencies {
-    implementation(kotlin("stdlib-jdk8"))
     antlr("org.antlr:antlr4:4.8")
     implementation(kotlin("reflect"))
     testImplementation(kotlin("test"))
@@ -64,9 +63,10 @@ dependencies {
 
 tasks {
     named("run", JavaExec::class) {
-        this.standardInput = System.`in`
+        standardInput = System.`in`
     }
     jar {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
         manifest {
             attributes["Implementation-Title"] = project.name
             attributes["Implementation-Version"] = project.version
@@ -80,22 +80,17 @@ tasks {
         kotlinOptions.jvmTarget = "13"
         dependsOn("generateGrammarSource")
         kotlinOptions.suppressWarnings = true
+        kotlinOptions.useIR = true
     }
     compileTestKotlin {
         kotlinOptions.jvmTarget = "13"
-    }
-    dokka {
-        outputFormat = "html"
-        outputDirectory = "$buildDir/dokka/html"
+        dependsOn("generateGrammarSource")
+        kotlinOptions.suppressWarnings = true
+        kotlinOptions.useIR = true
     }
     generateGrammarSource {
         outputDirectory = File("$buildDir/generated-src/antlr/main/java")
-        arguments.add("-visitor")
-        arguments.add("-no-listener")
-    }
-    register("dokkaMarkdown", org.jetbrains.dokka.gradle.DokkaTask::class) {
-        outputFormat = "gfm"
-        outputDirectory = "$buildDir/dokka/gfm"
+        arguments.addAll(arrayOf("-visitor", "-no-listener"))
     }
     processResources {
         filter { it.replace("%VERSION%", project.version.toString()) }
@@ -104,6 +99,9 @@ tasks {
         doLast {
             println("Version $version")
         }
+    }
+    dokkaHtml {
+        outputDirectory = "$buildDir/dokka/html"
     }
 }
 
