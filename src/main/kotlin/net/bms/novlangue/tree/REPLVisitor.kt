@@ -28,6 +28,7 @@ class REPLVisitor(func: FunctionBuilder, helperFuncs: Boolean = false) : IRVisit
             is MultiplicationNode -> DoubleConst((node.left as NumberNode).value * (node.right as NumberNode).value)
             is DivisionNode -> DoubleConst((node.left as NumberNode).value / (node.right as NumberNode).value)
             is SubtractionNode -> DoubleConst((node.left as NumberNode).value - (node.right as NumberNode).value)
+            is ModuloNode -> DoubleConst((node.left as NumberNode).value % (node.right as NumberNode).value)
             else -> DoubleConst((node.left as NumberNode).value + (node.right as NumberNode).value)
         }
         println("\t${(node.left as NumberNode).value} ${node.operator} ${(node.right as NumberNode).value} -> ${ret.value}")

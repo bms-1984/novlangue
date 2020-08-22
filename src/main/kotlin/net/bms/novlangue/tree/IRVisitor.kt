@@ -25,6 +25,7 @@ open class IRVisitor(
         is SubtractionNode -> visit(node)
         is MultiplicationNode -> visit(node)
         is DivisionNode -> visit(node)
+        is ModuloNode -> visit(node)
         is NegateNode -> visit(node)
         is NumberNode -> visit(node)
         is ValNode -> visit(node)
@@ -167,6 +168,11 @@ open class IRVisitor(
     internal open fun visit(node: DivisionNode): Value = when (node.left.toValNode().type) {
         ValTypes.DOUBLE -> block.tempValue(FloatDivision(visit(node.left), visit(node.right))).reference()
         else -> block.tempValue(SignedIntDivision(visit(node.left), visit(node.right))).reference()
+    }
+
+    internal open fun visit(node: ModuloNode): Value = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> block.tempValue(FloatRemainder(visit(node.left), visit(node.right))).reference()
+        else -> block.tempValue(IntRemainder(visit(node.left), visit(node.right))).reference()
     }
 
     internal open fun visit(node: NegateNode): Value = when (node.innerNode.toValNode().type) {

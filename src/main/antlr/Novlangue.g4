@@ -11,7 +11,7 @@ s:
 e:
     fun_call #FunCall
     | '-' e #NegExpr
-    | left=e op=('*'|'/') right=e #BinExpr
+    | left=e op=('*'|'/'|'%') right=e #BinExpr
     | left=e op=('+'|'-') right=e #BinExpr
     | '(' e ')' #ParenExpr
     | val=FLOAT #FloatNumber
@@ -41,6 +41,7 @@ OP_ADD: '+';
 OP_SUB: '-';
 OP_MUL: '*';
 OP_DIV: '/';
+OP_MOD: '%';
 fragment DIGIT: [0-9]+;
 ID: [a-zA-Z_]+;
 COMMENT: '/*' .*? '*/' -> skip;

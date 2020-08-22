@@ -74,6 +74,12 @@ class DivisionNode(override var left: Node, override var right: Node, override v
     InfixExpressionNode()
 
 /**
+ * Node type for '%'
+ */
+class ModuloNode(override var left: Node, override var right: Node, override var operator: String = "%") :
+    InfixExpressionNode()
+
+/**
  * Node type for negative numbers
  *
  * @property innerNode the node within.

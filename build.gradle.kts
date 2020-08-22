@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "net.bms.novlangue"
-version = "0.1.4"
+version = "0.1.5"
 
 repositories {
     mavenCentral()
@@ -57,7 +57,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.12")
-    implementation("me.tomassetti:kllvm:0.1.4-SNAPSHOT")
+    implementation("me.tomassetti:kllvm:0.1.6-SNAPSHOT")
 
 }
 

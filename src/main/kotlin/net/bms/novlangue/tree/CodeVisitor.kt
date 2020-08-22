@@ -115,6 +115,9 @@ open class CodeVisitor : NovlangueBaseVisitor<Node>() {
             NovlangueLexer.OP_MUL -> {
                 MultiplicationNode(visit(ctx.left), visit(ctx.right))
             }
+            NovlangueLexer.OP_MOD -> {
+                ModuloNode(visit(ctx.left), visit(ctx.right))
+            }
             else -> null
         } as Node
 
