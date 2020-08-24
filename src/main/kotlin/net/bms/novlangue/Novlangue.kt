@@ -56,33 +56,57 @@ fun main(args: Array<String>) {
     properties.load(object {}.javaClass.classLoader.getResourceAsStream("novlangue.properties"))
     println("Sutter's Novlangue Compiler v${properties.getProperty("version")}")
 
-    mainFun = module.createMainFunction()
-
     if (args.isNotEmpty()) {
-        if (args.contains("-noMain"))
-            mainFun = module.createFunction("__INTERNAL_${Random.nextUInt()}_", I32Type, listOf())
+        val installMain = !args.contains("-noMain")
         val helpers = !args.contains("-noStd")
-
-        try {
-            module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
-            FileReader(args[0]).also { reader -> runNovlangue(reader, true, helpers) }.close()
-            FileWriter(File(args[0]).nameWithoutExtension.plus(".ll")).apply { write(module.IRCode().trim()) }.close()
-            println("Complete.")
-            return
-        } catch (e: FileNotFoundException) {
-            println("ERROR: $e; dropping into a REPL...")
-        }
-        runREPL(helpers)
+        if (runCompiler(File(args[0]), helpers, installMain)) println("Complete.")
+        else runREPL(helpers)
     } else {
         runREPL()
     }
     return
 }
 
-@Suppress("SameParameterValue")
-private fun runNovlangue(reader: Reader, compile: Boolean = false, helpers: Boolean = true) {
+/**
+ * Run Novlangue to file
+ */
+@ExperimentalUnsignedTypes
+fun runCompiler(
+    input: File,
+    helpers: Boolean = true,
+    installMain: Boolean = true
+): Boolean = try {
+    FileReader(input).run {
+        runNovlangue(this, true, helpers, installMain)
+        close()
+    }
+    FileWriter(input.getOutputFile()).run {
+        write(module.IRCode().trim())
+        close()
+    }
+    true
+} catch (e: FileNotFoundException) {
+    println("ERROR: $e; dropping into a REPL...")
+    false
+}
+
+/**
+ * Returns file's output name
+ */
+fun File.getOutputFile(): File = File(this.nameWithoutExtension.plus(".ll"))
+
+/**
+ * Runs Novlangue
+ */
+@ExperimentalUnsignedTypes
+fun runNovlangue(reader: Reader, compile: Boolean = false, helpers: Boolean = true, installMain: Boolean = true) {
     val tree =
         CodeVisitor().visit(NovlangueParser(CommonTokenStream(NovlangueLexer(CharStreams.fromReader(reader)))).top())
+    mainFun =
+        if (installMain) module.createMainFunction()
+        else module.createFunction("__INTERNAL_${Random.nextUInt()}_MAIN_", I32Type, listOf())
+    if (helpers)
+        module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
     if (compile) IRVisitor(mainFun, finally = true, helperFuncs = helpers).visit(tree)
     else REPLVisitor(mainFun, helperFuncs = helpers).visit(tree)
 }
@@ -95,13 +119,14 @@ private fun listBindings() {
         for (f in funStore) {
             var params = ""
             f.paramTypes.forEachIndexed { index, type ->
-                params += if (index == 0) type.IRCode() else ", ${type.IRCode()}"
+                params += if (index == 0) typeNameMap[type]?.type else ", ${typeNameMap[type]?.type}"
             }
-            println("${f.name}(${params}): ${f.returnType.IRCode()}")
+            println("${f.name}(${params}): ${typeNameMap[f.returnType]?.type}")
         }
     }
 }
 
+@ExperimentalUnsignedTypes
 private fun runREPL(helpers: Boolean = true) {
     println("WARNING: REPL MODE IS CURRENTLY INCOMPLETE")
     println("For assistance, use ;help.\n")

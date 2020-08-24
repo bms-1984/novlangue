@@ -54,17 +54,20 @@ jacoco {
 dependencies {
     antlr("org.antlr:antlr4:4.8")
     implementation(kotlin("reflect"))
-    testImplementation(kotlin("test"))
-    testImplementation(kotlin("test-junit"))
-    testImplementation("junit:junit:4.12")
     implementation("me.tomassetti:kllvm:0.1.6-SNAPSHOT")
+}
 
+kotlin {
+    sourceSets {
+        test {
+            dependencies {
+                implementation(kotlin("test-junit"))
+            }
+        }
+    }
 }
 
 tasks {
-    named("run", JavaExec::class) {
-        standardInput = System.`in`
-    }
     jar {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
         manifest {
@@ -76,17 +79,17 @@ tasks {
             if (it.isDirectory) it else zipTree(it)
         })
     }
-    compileKotlin {
-        kotlinOptions.jvmTarget = "13"
-        dependsOn("generateGrammarSource")
-        kotlinOptions.suppressWarnings = true
-        kotlinOptions.useIR = true
-    }
-    compileTestKotlin {
-        kotlinOptions.jvmTarget = "13"
-        dependsOn("generateGrammarSource")
-        kotlinOptions.suppressWarnings = true
-        kotlinOptions.useIR = true
+    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        kotlinOptions {
+            jvmTarget = "13"
+            useIR = true
+            languageVersion = "1.4"
+            apiVersion = languageVersion
+            verbose = true
+            allWarningsAsErrors = true
+            freeCompilerArgs = freeCompilerArgs + "-progressive"
+        }
+        dependsOn(generateGrammarSource)
     }
     generateGrammarSource {
         outputDirectory = File("$buildDir/generated-src/antlr/main/java")
