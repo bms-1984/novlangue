@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    assignees:
+      - "bms-1984"
+    commit-message:
+      prefix: "Gradle"
+      include: "scope"
