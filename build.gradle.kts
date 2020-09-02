@@ -53,7 +53,7 @@ application {
 spotless {
     kotlin {
         ktlint(ktlintVersion)
-        licenseHeader("/* (C) Ben M. Sutter \$YEAR */", "^package|(.+Novlangue Test Suite.+)")
+        licenseHeaderFile(file("doc/LICENSE_HEADER"), "^package|(.+Novlangue Test Suite.+)")
     }
     kotlinGradle {
         target("*.gradle.kts")
@@ -62,7 +62,7 @@ spotless {
     antlr4 {
         target("src/main/antlr/*.g4")
         antlr4Formatter(antlr4FormatterVersion)
-        licenseHeader("/* (C) Ben M. Sutter \$YEAR */")
+        licenseHeaderFile(file("doc/LICENSE_HEADER"))
     }
 }
 
