@@ -163,18 +163,33 @@ open class IRVisitor(
         val doubleString = LLVM.LLVMBuildGlobalStringPtr(builder, "%f\n", getUniqueID("DOUBLE_STRING"))
         val strString = LLVM.LLVMBuildGlobalStringPtr(builder, "%s\n", getUniqueID("STR_STRING"))
         val printInt = LLVM.LLVMAddFunction(
-            module, mangleFunName("print", LLVM.LLVMInt32Type()), LLVM.LLVMFunctionType(
-                LLVM.LLVMInt32Type(), LLVM.LLVMInt32Type(), 1, 0
+            module,
+            mangleFunName("print", LLVM.LLVMInt32Type()),
+            LLVM.LLVMFunctionType(
+                LLVM.LLVMInt32Type(),
+                LLVM.LLVMInt32Type(),
+                1,
+                0
             )
         )
         val printDouble = LLVM.LLVMAddFunction(
-            module, mangleFunName("print", LLVM.LLVMDoubleType()), LLVM.LLVMFunctionType(
-                LLVM.LLVMInt32Type(), LLVM.LLVMDoubleType(), 1, 0
+            module,
+            mangleFunName("print", LLVM.LLVMDoubleType()),
+            LLVM.LLVMFunctionType(
+                LLVM.LLVMInt32Type(),
+                LLVM.LLVMDoubleType(),
+                1,
+                0
             )
         )
         val printString = LLVM.LLVMAddFunction(
-            module, mangleFunName("print", LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0)), LLVM.LLVMFunctionType(
-                LLVM.LLVMInt32Type(), LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0), 1, 0
+            module,
+            mangleFunName("print", LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0)),
+            LLVM.LLVMFunctionType(
+                LLVM.LLVMInt32Type(),
+                LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0),
+                1,
+                0
             )
         )
         LLVM.LLVMPositionBuilderAtEnd(builder, LLVM.LLVMGetEntryBasicBlock(printInt))

@@ -140,6 +140,16 @@ tasks {
         gradleVersion = "6.6.1"
         distributionType = Wrapper.DistributionType.ALL
     }
+    test {
+        finalizedBy(jacocoTestReport)
+    }
+    jacocoTestReport {
+        reports {
+            csv.isEnabled = false
+            xml.isEnabled = false
+        }
+        dependsOn(test)
+    }
 }
 
 sourceSets.main {

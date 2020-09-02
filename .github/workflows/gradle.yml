@@ -1,13 +1,12 @@
-# This workflow will build a Java project with Gradle
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
-
-name: Kotlin CI
+name: Test
 env:
   GHTOKEN: ${{ secrets.GHTOKEN }}
   GHUSERNAME: ${{ secrets.GHUSERNAME }}
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+      - no-kllvm
   pull_request:
     branches: [ master ]
 jobs:
@@ -22,4 +21,4 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build with Gradle
-        run: ./gradlew build
+        run: ./gradlew check

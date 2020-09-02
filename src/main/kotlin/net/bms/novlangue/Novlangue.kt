@@ -9,11 +9,18 @@ import net.bms.novlangue.tree.REPLVisitor
 import net.bms.novlangue.tree.ValTypes
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import org.bytedeco.llvm.LLVM.*
+import org.bytedeco.llvm.LLVM.LLVMBuilderRef
+import org.bytedeco.llvm.LLVM.LLVMContextRef
+import org.bytedeco.llvm.LLVM.LLVMModuleRef
+import org.bytedeco.llvm.LLVM.LLVMTypeRef
+import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
-import java.io.*
-import java.util.*
-import kotlin.collections.HashMap
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.FileReader
+import java.io.Reader
+import java.io.StringReader
+import java.util.Properties
 import kotlin.random.Random
 import kotlin.random.nextUInt
 
@@ -124,7 +131,8 @@ fun runNovlangue(reader: Reader, compile: Boolean = false, helpers: Boolean = tr
                 module,
                 "printf",
                 LLVM.LLVMFunctionType(LLVM.LLVMInt32Type(), LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0), 1, 1)
-            ), LLVM.LLVMExternalLinkage
+            ),
+            LLVM.LLVMExternalLinkage
         )
     if (compile) IRVisitor(mainFun, builder, finally = true, helperFuncs = helpers).visit(tree)
     else REPLVisitor(mainFun, helperFuncs = helpers).visit(tree)
