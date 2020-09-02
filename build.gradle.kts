@@ -53,7 +53,7 @@ application {
 spotless {
     kotlin {
         ktlint(ktlintVersion)
-        licenseHeaderFile(file("doc/LICENSE_HEADER"), "^package|(.+Novlangue Test Suite.+)")
+        licenseHeaderFile(file("docs/LICENSE_HEADER"), "^package|(.+Novlangue Test Suite.+)")
     }
     kotlinGradle {
         target("*.gradle.kts")
@@ -62,7 +62,7 @@ spotless {
     antlr4 {
         target("src/main/antlr/*.g4")
         antlr4Formatter(antlr4FormatterVersion)
-        licenseHeaderFile(file("doc/LICENSE_HEADER"))
+        licenseHeaderFile(file("docs/LICENSE_HEADER"))
     }
 }
 
