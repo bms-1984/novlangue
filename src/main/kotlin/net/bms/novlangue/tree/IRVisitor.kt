@@ -1,7 +1,42 @@
+/* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue.tree
 
-import me.tomassetti.kllvm.*
-import net.bms.novlangue.*
+import me.tomassetti.kllvm.BlockBuilder
+import me.tomassetti.kllvm.Call
+import me.tomassetti.kllvm.DoubleConst
+import me.tomassetti.kllvm.DoubleType
+import me.tomassetti.kllvm.FloatAddition
+import me.tomassetti.kllvm.FloatComparison
+import me.tomassetti.kllvm.FloatDivision
+import me.tomassetti.kllvm.FloatMultiplication
+import me.tomassetti.kllvm.FloatRemainder
+import me.tomassetti.kllvm.FloatSubtraction
+import me.tomassetti.kllvm.FunctionBuilder
+import me.tomassetti.kllvm.I32Type
+import me.tomassetti.kllvm.I8Type
+import me.tomassetti.kllvm.IntAddition
+import me.tomassetti.kllvm.IntComparison
+import me.tomassetti.kllvm.IntConst
+import me.tomassetti.kllvm.IntMultiplication
+import me.tomassetti.kllvm.IntRemainder
+import me.tomassetti.kllvm.IntSubtraction
+import me.tomassetti.kllvm.Load
+import me.tomassetti.kllvm.LocalVariable
+import me.tomassetti.kllvm.Null
+import me.tomassetti.kllvm.Pointer
+import me.tomassetti.kllvm.Printf
+import me.tomassetti.kllvm.Return
+import me.tomassetti.kllvm.ReturnInt
+import me.tomassetti.kllvm.SignedIntDivision
+import me.tomassetti.kllvm.Type
+import me.tomassetti.kllvm.Value
+import me.tomassetti.kllvm.VoidType
+import net.bms.novlangue.funStore
+import net.bms.novlangue.funValStore
+import net.bms.novlangue.mainFun
+import net.bms.novlangue.module
+import net.bms.novlangue.typeNameMap
+import net.bms.novlangue.valStore
 
 /**
  * Translator from AST to LLVM IR
@@ -15,8 +50,10 @@ import net.bms.novlangue.*
  * @property helperFuncs should builtin functions be defined.
  */
 open class IRVisitor(
-    private val func: FunctionBuilder, var block: BlockBuilder = func.entryBlock(),
-    private val finally: Boolean = false, private val helperFuncs: Boolean = (func == mainFun && finally),
+    private val func: FunctionBuilder,
+    var block: BlockBuilder = func.entryBlock(),
+    private val finally: Boolean = false,
+    private val helperFuncs: Boolean = (func == mainFun && finally),
     private val exitBlock: BlockBuilder? = null
 ) {
 
@@ -74,7 +111,9 @@ open class IRVisitor(
     internal open fun visit(node: MasterNode): Value {
         if (helperFuncs) {
             val printInt = module.createFunction(
-                mangleFunName("print", I32Type), I32Type, listOf(I32Type)
+                mangleFunName("print", I32Type),
+                I32Type,
+                listOf(I32Type)
             )
             funStore += printInt
             val variableInt = printInt.entryBlock().addVariable(I32Type, "x")
@@ -89,7 +128,9 @@ open class IRVisitor(
             printInt.addInstruction(ReturnInt(0))
 
             val printDouble = module.createFunction(
-                mangleFunName("print", DoubleType), I32Type, listOf(DoubleType)
+                mangleFunName("print", DoubleType),
+                I32Type,
+                listOf(DoubleType)
             )
             funStore += printDouble
             val variableDouble = printDouble.entryBlock().addVariable(DoubleType, "x")
@@ -104,7 +145,9 @@ open class IRVisitor(
             printDouble.addInstruction(ReturnInt(0))
 
             val printString = module.createFunction(
-                mangleFunName("print", Pointer(I8Type)), I32Type, listOf(Pointer(I8Type))
+                mangleFunName("print", Pointer(I8Type)),
+                I32Type,
+                listOf(Pointer(I8Type))
             )
             funStore += printString
             val variableString = printString.entryBlock().addVariable(Pointer(I8Type), "x")
@@ -207,9 +250,11 @@ open class IRVisitor(
             block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
         } else if (func in funValStore && funValStore[func]?.any { it.first == node.id }!!) {
-            val index = funValStore[func]?.indexOf(funValStore[func]?.find {
-                it.first == node.id
-            })
+            val index = funValStore[func]?.indexOf(
+                funValStore[func]?.find {
+                    it.first == node.id
+                }
+            )
             return index?.let { func.paramReference(it) }!!
         } else if (valStore.any { it.name == node.id })
             return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
@@ -233,8 +278,8 @@ open class IRVisitor(
             if (type != value.type()) {
                 println(
                     "\tERROR: Argument ${index + 1} of function ${node.`fun`} " +
-                            "should be of type ${typeNameMap[type]?.type}, " +
-                            "but supplied argument is of type ${typeNameMap[value.type()]?.type}."
+                        "should be of type ${typeNameMap[type]?.type}, " +
+                        "but supplied argument is of type ${typeNameMap[value.type()]?.type}."
                 )
                 return Null()
             }

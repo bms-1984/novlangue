@@ -1,3 +1,4 @@
+/* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue.tree
 
 import NovlangueParser
@@ -204,4 +205,3 @@ class CompNode : Node() {
     var right: ValNode = ValNode()
     var type: ComparisonType = ComparisonType.IntEqual
 }
-

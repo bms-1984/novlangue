@@ -1,3 +1,4 @@
+/* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue.tree
 
 import me.tomassetti.kllvm.DoubleConst

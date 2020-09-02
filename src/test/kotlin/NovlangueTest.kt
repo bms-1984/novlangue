@@ -1,3 +1,5 @@
+/* (C) Ben M. Sutter 2020 */
+/* Novlangue Test Suite */
 import net.bms.novlangue.getOutputFile
 import net.bms.novlangue.runCompiler
 import java.io.File
@@ -25,12 +27,12 @@ class NovlangueTest {
             fail("Output file was not created.")
         assertEquals(
             "define i32 @main(i32, i8**) {\n" +
-                    "    \n" +
-                    "    ; unnamed block\n" +
-                    "    %tmpValue0 = add i32 1, 1\n" +
-                    "    ret i32 0\n" +
-                    "\n" +
-                    "}",
+                "    \n" +
+                "    ; unnamed block\n" +
+                "    %tmpValue0 = add i32 1, 1\n" +
+                "    ret i32 0\n" +
+                "\n" +
+                "}",
             output.readText()
         )
     }

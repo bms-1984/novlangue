@@ -1,18 +1,30 @@
+/* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue
 
 import NovlangueLexer
 import NovlangueParser
-import me.tomassetti.kllvm.*
+import me.tomassetti.kllvm.DoubleType
+import me.tomassetti.kllvm.FunctionBuilder
+import me.tomassetti.kllvm.FunctionDeclaration
+import me.tomassetti.kllvm.I32Type
+import me.tomassetti.kllvm.I8Type
+import me.tomassetti.kllvm.LocalVariable
+import me.tomassetti.kllvm.ModuleBuilder
+import me.tomassetti.kllvm.Pointer
+import me.tomassetti.kllvm.Type
 import net.bms.novlangue.tree.CodeVisitor
 import net.bms.novlangue.tree.IRVisitor
 import net.bms.novlangue.tree.REPLVisitor
 import net.bms.novlangue.tree.ValTypes
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import java.io.*
-import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.FileReader
+import java.io.FileWriter
+import java.io.Reader
+import java.io.StringReader
+import java.util.Properties
 import kotlin.random.Random
 import kotlin.random.nextUInt
 
@@ -121,7 +133,7 @@ private fun listBindings() {
             f.paramTypes.forEachIndexed { index, type ->
                 params += if (index == 0) typeNameMap[type]?.type else ", ${typeNameMap[type]?.type}"
             }
-            println("${f.name}(${params}): ${typeNameMap[f.returnType]?.type}")
+            println("${f.name}($params): ${typeNameMap[f.returnType]?.type}")
         }
     }
 }
@@ -149,7 +161,6 @@ private fun runREPL(helpers: Boolean = true) {
         } else runNovlangue(StringReader(line), helpers = helpers)
     }
 }
-
 
 private fun getHelp() {
     println("Commands:")

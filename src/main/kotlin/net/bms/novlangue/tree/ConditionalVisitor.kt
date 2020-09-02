@@ -1,3 +1,4 @@
+/* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue.tree
 
 import me.tomassetti.kllvm.BlockBuilder
@@ -15,8 +16,10 @@ import me.tomassetti.kllvm.JumpInstruction
  * @property falseBlock jump here if false
  */
 class ConditionalVisitor(
-    private val func: FunctionBuilder, private val entryBlock: BlockBuilder,
-    private var exitBlock: BlockBuilder, private val trueBlock: BlockBuilder,
+    private val func: FunctionBuilder,
+    private val entryBlock: BlockBuilder,
+    private var exitBlock: BlockBuilder,
+    private val trueBlock: BlockBuilder,
     private val falseBlock: BlockBuilder,
 ) : IRVisitor(func, entryBlock) {
     internal fun visit(trueBody: BodyNode, falseBody: BodyNode?, comp: CompNode, chain: ArrayList<ConditionalNode>) {
