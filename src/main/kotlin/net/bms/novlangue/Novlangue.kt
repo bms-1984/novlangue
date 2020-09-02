@@ -9,18 +9,11 @@ import net.bms.novlangue.tree.REPLVisitor
 import net.bms.novlangue.tree.ValTypes
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import org.bytedeco.llvm.LLVM.LLVMBuilderRef
-import org.bytedeco.llvm.LLVM.LLVMContextRef
-import org.bytedeco.llvm.LLVM.LLVMModuleRef
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
-import org.bytedeco.llvm.LLVM.LLVMValueRef
+import org.bytedeco.llvm.LLVM.*
 import org.bytedeco.llvm.global.LLVM
-import java.io.File
-import java.io.FileNotFoundException
-import java.io.FileReader
-import java.io.Reader
-import java.io.StringReader
-import java.util.Properties
+import java.io.*
+import java.util.*
+import kotlin.collections.HashMap
 import kotlin.random.Random
 import kotlin.random.nextUInt
 
@@ -28,6 +21,11 @@ import kotlin.random.nextUInt
  * Variable storage
  */
 val valStore: HashMap<String, LLVMValueRef> = HashMap()
+
+/**
+ * Local variable storage
+ */
+val localValStore: HashMap<String, LLVMValueRef> = HashMap()
 
 /**
  * Top-level IR representation
@@ -121,10 +119,12 @@ fun runNovlangue(reader: Reader, compile: Boolean = false, helpers: Boolean = tr
             LLVM.LLVMFunctionType(LLVM.LLVMInt32Type(), LLVM.LLVMVoidType(), 0, 0)
         )
     if (helpers)
-        LLVM.LLVMAddFunction(
-            module,
-            "printf",
-            LLVM.LLVMFunctionType(LLVM.LLVMInt32Type(), LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0), 1, 1)
+        LLVM.LLVMSetLinkage(
+            LLVM.LLVMAddFunction(
+                module,
+                "printf",
+                LLVM.LLVMFunctionType(LLVM.LLVMInt32Type(), LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0), 1, 1)
+            ), LLVM.LLVMExternalLinkage
         )
     if (compile) IRVisitor(mainFun, builder, finally = true, helperFuncs = helpers).visit(tree)
     else REPLVisitor(mainFun, helperFuncs = helpers).visit(tree)

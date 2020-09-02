@@ -1,5 +1,7 @@
 @file:Suppress("KDocMissingDocumentation")
 
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     kotlin("jvm") version "1.4.0"
     id("org.jetbrains.dokka") version "1.4.0-rc"
@@ -13,7 +15,7 @@ plugins {
 group = "net.bms.novlangue"
 version = "0.1.6"
 
-val prod: Boolean = false
+val production: Boolean = false
 val ktlintVersion: String = "0.38.1"
 val llvmVersion: String = "10.0.0-1.5.3"
 val jacocoVersion: String = "0.8.5"
@@ -45,6 +47,7 @@ publishing {
 
 application {
     mainClassName = "$group.NovlangueKt"
+    applicationName = "Novlangue"
 }
 
 spotless {
@@ -85,8 +88,13 @@ kotlin {
 
 tasks {
     named<JavaExec>("run") {
-        workingDir("test")
-        args("test.sw")
+        workingDir("run")
+        if (project.hasProperty("input.file"))
+            args(project.properties["input.file"])
+        if (project.hasProperty("main.false"))
+            args("-noMain")
+        if (project.hasProperty("stdlib.false"))
+            args("-noStd")
     }
     jar {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
@@ -101,15 +109,15 @@ tasks {
             }
         )
     }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    withType<KotlinCompile>().configureEach {
         kotlinOptions {
             jvmTarget = "13"
             useIR = true
             languageVersion = "1.4"
             apiVersion = languageVersion
             verbose = true
-            allWarningsAsErrors = prod
             freeCompilerArgs = freeCompilerArgs + "-progressive"
+            allWarningsAsErrors = production
         }
         dependsOn(generateGrammarSource)
     }

@@ -2,6 +2,8 @@
 package net.bms.novlangue.tree
 
 import net.bms.novlangue.mainFun
+import net.bms.novlangue.module
+import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.LLVM.LLVMBuilderRef
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
@@ -90,6 +92,7 @@ open class IRVisitor(
     }
 
     internal open fun visit(node: MasterNode): LLVMValueRef {
+        if (helperFuncs) addHelpers()
         node.prog.forEach {
             if (it is InfixExpressionNode) LLVM.LLVMInsertIntoBuilder(builder, visit(it))
             else visit(it)
@@ -147,11 +150,69 @@ open class IRVisitor(
         else -> LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), node.value.toLong(), 0)
     }
 
-    private fun visit(node: StringNode): LLVMValueRef = TODO()
+    internal open fun visit(node: StringNode): LLVMValueRef = TODO()
 
     internal open fun visit(node: ValNode): LLVMValueRef = TODO()
 
     internal open fun visit(node: FunCallNode): LLVMValueRef = TODO()
 
     internal open fun visit(node: FunDefNode): LLVMValueRef = TODO()
+
+    private fun addHelpers() {
+        val intString = LLVM.LLVMBuildGlobalStringPtr(builder, "%d\n", getUniqueID("INT_STRING"))
+        val doubleString = LLVM.LLVMBuildGlobalStringPtr(builder, "%f\n", getUniqueID("DOUBLE_STRING"))
+        val strString = LLVM.LLVMBuildGlobalStringPtr(builder, "%s\n", getUniqueID("STR_STRING"))
+        val printInt = LLVM.LLVMAddFunction(
+            module, mangleFunName("print", LLVM.LLVMInt32Type()), LLVM.LLVMFunctionType(
+                LLVM.LLVMInt32Type(), LLVM.LLVMInt32Type(), 1, 0
+            )
+        )
+        val printDouble = LLVM.LLVMAddFunction(
+            module, mangleFunName("print", LLVM.LLVMDoubleType()), LLVM.LLVMFunctionType(
+                LLVM.LLVMInt32Type(), LLVM.LLVMDoubleType(), 1, 0
+            )
+        )
+        val printString = LLVM.LLVMAddFunction(
+            module, mangleFunName("print", LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0)), LLVM.LLVMFunctionType(
+                LLVM.LLVMInt32Type(), LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0), 1, 0
+            )
+        )
+        LLVM.LLVMPositionBuilderAtEnd(builder, LLVM.LLVMGetEntryBasicBlock(printInt))
+        LLVM.LLVMBuildCall(
+            builder,
+            LLVM.LLVMGetNamedFunction(module, "printf"),
+            PointerPointer(intString, LLVM.LLVMGetFirstParam(printInt)),
+            2,
+            "call_int_printf"
+        )
+        LLVM.LLVMBuildRet(
+            builder,
+            LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), 0, 0)
+        )
+        LLVM.LLVMPositionBuilderAtEnd(builder, LLVM.LLVMGetEntryBasicBlock(printDouble))
+        LLVM.LLVMBuildCall(
+            builder,
+            LLVM.LLVMGetNamedFunction(module, "printf"),
+            PointerPointer(doubleString, LLVM.LLVMGetFirstParam(printDouble)),
+            2,
+            "call_double_printf"
+        )
+        LLVM.LLVMBuildRet(
+            builder,
+            LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), 0, 0)
+        )
+        LLVM.LLVMPositionBuilderAtEnd(builder, LLVM.LLVMGetEntryBasicBlock(printString))
+        LLVM.LLVMBuildCall(
+            builder,
+            LLVM.LLVMGetNamedFunction(module, "printf"),
+            PointerPointer(strString, LLVM.LLVMGetFirstParam(printString)),
+            2,
+            "call_string_printf"
+        )
+        LLVM.LLVMBuildRet(
+            builder,
+            LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), 0, 0)
+        )
+        LLVM.LLVMPositionBuilderAtEnd(builder, block)
+    }
 }
