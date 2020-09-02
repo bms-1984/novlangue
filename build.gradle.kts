@@ -11,10 +11,11 @@ plugins {
 }
 
 group = "net.bms.novlangue"
-version = "0.1.5"
+version = "0.1.6"
 
+val prod: Boolean = false
 val ktlintVersion: String = "0.38.1"
-val kllvmVersion: String = "0.1.6-SNAPSHOT"
+val llvmVersion: String = "10.0.0-1.5.3"
 val jacocoVersion: String = "0.8.5"
 val antlr4Version: String = "4.8"
 val antlr4FormatterVersion: String = "1.2.1"
@@ -26,16 +27,6 @@ repositories {
     maven("https://jitpack.io")
     maven("https://dl.bintray.com/kotlin/kotlin-eap")
     maven("https://kotlin.bintray.com/kotlinx")
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/bms-1984/kllvm")
-            credentials {
-                username = System.getenv("GHUSERNAME")
-                password = System.getenv("GHTOKEN")
-            }
-        }
-    }
 }
 
 publishing {
@@ -79,7 +70,7 @@ jacoco {
 dependencies {
     antlr("org.antlr:antlr4:$antlr4Version")
     implementation(kotlin("reflect"))
-    implementation("me.tomassetti:kllvm:$kllvmVersion")
+    implementation("org.bytedeco:llvm-platform:$llvmVersion")
 }
 
 kotlin {
@@ -93,6 +84,10 @@ kotlin {
 }
 
 tasks {
+    named<JavaExec>("run") {
+        workingDir("test")
+        args("test.sw")
+    }
     jar {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
         manifest {
@@ -113,7 +108,7 @@ tasks {
             languageVersion = "1.4"
             apiVersion = languageVersion
             verbose = true
-            allWarningsAsErrors = true
+            allWarningsAsErrors = prod
             freeCompilerArgs = freeCompilerArgs + "-progressive"
         }
         dependsOn(generateGrammarSource)

@@ -12,7 +12,7 @@ class NovlangueTest {
     @ExperimentalUnsignedTypes
     @Test
     fun `Output file is created and contains basic IR`() {
-        val input = File("test.sw").apply {
+        val input = File("temp.sw").apply {
             createNewFile()
             deleteOnExit()
         }
@@ -26,13 +26,7 @@ class NovlangueTest {
         if (!output.exists())
             fail("Output file was not created.")
         assertEquals(
-            "define i32 @main(i32, i8**) {\n" +
-                "    \n" +
-                "    ; unnamed block\n" +
-                "    %tmpValue0 = add i32 1, 1\n" +
-                "    ret i32 0\n" +
-                "\n" +
-                "}",
+            "; ModuleID = 'temp'${System.lineSeparator()}source_filename = \"temp.sw\"${System.lineSeparator()}${System.lineSeparator()}declare i32 @main()${System.lineSeparator()}",
             output.readText()
         )
     }

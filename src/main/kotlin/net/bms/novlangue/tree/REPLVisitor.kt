@@ -1,44 +1,29 @@
 /* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue.tree
 
-import me.tomassetti.kllvm.DoubleConst
-import me.tomassetti.kllvm.FunctionBuilder
-import me.tomassetti.kllvm.Load
-import me.tomassetti.kllvm.Value
+import net.bms.novlangue.builder
+import org.bytedeco.llvm.LLVM.LLVMValueRef
 
 /**
  * Extension of [IRVisitor] to facilitate a read-eval-print-loop
  *
  * @property func passed to [IRVisitor]
  */
-class REPLVisitor(func: FunctionBuilder, helperFuncs: Boolean = false) : IRVisitor(func, helperFuncs = helperFuncs) {
+class REPLVisitor(func: LLVMValueRef, helperFuncs: Boolean = false) :
+    IRVisitor(func, builder, helperFuncs = helperFuncs) {
 
-    override fun visit(node: Node?): Value = when (node) {
+    override fun visit(node: Node?): LLVMValueRef = when (node) {
         is InfixExpressionNode -> visit(node)
         else -> super.visit(node)
     }
 
-    override fun visit(node: FunDefNode): Value {
+    override fun visit(node: FunDefNode): LLVMValueRef {
         val ret = super.visit(node)
         println("\tfunction ${node.`fun`} bound")
         return ret
     }
 
-    private fun visit(node: InfixExpressionNode): Value {
-        val ret = when (node) {
-            is MultiplicationNode -> DoubleConst((node.left as NumberNode).value * (node.right as NumberNode).value)
-            is DivisionNode -> DoubleConst((node.left as NumberNode).value / (node.right as NumberNode).value)
-            is SubtractionNode -> DoubleConst((node.left as NumberNode).value - (node.right as NumberNode).value)
-            is ModuloNode -> DoubleConst((node.left as NumberNode).value % (node.right as NumberNode).value)
-            else -> DoubleConst((node.left as NumberNode).value + (node.right as NumberNode).value)
-        }
-        println("\t${(node.left as NumberNode).value} ${node.operator} ${(node.right as NumberNode).value} -> ${ret.value}")
-        return ret
-    }
+    private fun visit(node: InfixExpressionNode): LLVMValueRef = TODO()
 
-    override fun visit(node: FunCallNode): Value {
-        val ret = Load(super.visit(node)).value
-        println("\t${node.`fun`}(...) -> $ret")
-        return ret
-    }
+    override fun visit(node: FunCallNode): LLVMValueRef = TODO()
 }

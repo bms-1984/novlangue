@@ -3,25 +3,21 @@ package net.bms.novlangue
 
 import NovlangueLexer
 import NovlangueParser
-import me.tomassetti.kllvm.DoubleType
-import me.tomassetti.kllvm.FunctionBuilder
-import me.tomassetti.kllvm.FunctionDeclaration
-import me.tomassetti.kllvm.I32Type
-import me.tomassetti.kllvm.I8Type
-import me.tomassetti.kllvm.LocalVariable
-import me.tomassetti.kllvm.ModuleBuilder
-import me.tomassetti.kllvm.Pointer
-import me.tomassetti.kllvm.Type
 import net.bms.novlangue.tree.CodeVisitor
 import net.bms.novlangue.tree.IRVisitor
 import net.bms.novlangue.tree.REPLVisitor
 import net.bms.novlangue.tree.ValTypes
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
+import org.bytedeco.llvm.LLVM.LLVMBuilderRef
+import org.bytedeco.llvm.LLVM.LLVMContextRef
+import org.bytedeco.llvm.LLVM.LLVMModuleRef
+import org.bytedeco.llvm.LLVM.LLVMTypeRef
+import org.bytedeco.llvm.LLVM.LLVMValueRef
+import org.bytedeco.llvm.global.LLVM
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileReader
-import java.io.FileWriter
 import java.io.Reader
 import java.io.StringReader
 import java.util.Properties
@@ -31,32 +27,32 @@ import kotlin.random.nextUInt
 /**
  * Variable storage
  */
-val valStore: ArrayList<LocalVariable> = ArrayList()
-
-/**
- * Function parameter storage
- */
-val funValStore: HashMap<FunctionBuilder, ArrayList<Pair<String, Type>>> = HashMap()
-
-/**
- * Function storage
- */
-val funStore: ArrayList<FunctionBuilder> = ArrayList()
+val valStore: HashMap<String, LLVMValueRef> = HashMap()
 
 /**
  * Top-level IR representation
  */
-val module: ModuleBuilder = ModuleBuilder()
+val context: LLVMContextRef = LLVM.LLVMGetGlobalContext()
+
+/**
+ * IR Builder
+ */
+val builder: LLVMBuilderRef = LLVM.LLVMCreateBuilder()
+
+/**
+ * IR Module
+ */
+lateinit var module: LLVMModuleRef
 
 /**
  * IR main function
  */
-lateinit var mainFun: FunctionBuilder
+lateinit var mainFun: LLVMValueRef
 
-internal val typeNameMap: HashMap<Type, ValTypes> = hashMapOf(
-    I32Type to ValTypes.INT,
-    DoubleType to ValTypes.DOUBLE,
-    Pointer(I8Type) to ValTypes.STRING,
+internal val typeNameMap: HashMap<LLVMTypeRef, ValTypes> = hashMapOf(
+    LLVM.LLVMInt32Type() to ValTypes.INT,
+    LLVM.LLVMDoubleType() to ValTypes.DOUBLE,
+    LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0) to ValTypes.STRING,
 )
 
 /**
@@ -88,14 +84,13 @@ fun runCompiler(
     helpers: Boolean = true,
     installMain: Boolean = true
 ): Boolean = try {
+    module = LLVM.LLVMModuleCreateWithName(input.nameWithoutExtension)
+    LLVM.LLVMSetSourceFileName(module, input.name, input.name.length.toLong())
     FileReader(input).run {
         runNovlangue(this, true, helpers, installMain)
         close()
     }
-    FileWriter(input.getOutputFile()).run {
-        write(module.IRCode().trim())
-        close()
-    }
+    LLVM.LLVMPrintModuleToFile(module, input.getOutputFile().path, byteArrayOf())
     true
 } catch (e: FileNotFoundException) {
     println("ERROR: $e; dropping into a REPL...")
@@ -115,28 +110,40 @@ fun runNovlangue(reader: Reader, compile: Boolean = false, helpers: Boolean = tr
     val tree =
         CodeVisitor().visit(NovlangueParser(CommonTokenStream(NovlangueLexer(CharStreams.fromReader(reader)))).top())
     mainFun =
-        if (installMain) module.createMainFunction()
-        else module.createFunction("__INTERNAL_${Random.nextUInt()}_MAIN_", I32Type, listOf())
+        if (installMain) LLVM.LLVMAddFunction(
+            module,
+            "main",
+            LLVM.LLVMFunctionType(LLVM.LLVMInt32Type(), LLVM.LLVMVoidType(), 0, 0)
+        )
+        else LLVM.LLVMAddFunction(
+            module,
+            "__INTERNAL_${Random.nextUInt()}_MAIN_",
+            LLVM.LLVMFunctionType(LLVM.LLVMInt32Type(), LLVM.LLVMVoidType(), 0, 0)
+        )
     if (helpers)
-        module.addDeclaration(FunctionDeclaration("printf", I32Type, listOf(Pointer(I8Type)), varargs = true))
-    if (compile) IRVisitor(mainFun, finally = true, helperFuncs = helpers).visit(tree)
+        LLVM.LLVMAddFunction(
+            module,
+            "printf",
+            LLVM.LLVMFunctionType(LLVM.LLVMInt32Type(), LLVM.LLVMPointerType(LLVM.LLVMInt8Type(), 0), 1, 1)
+        )
+    if (compile) IRVisitor(mainFun, builder, finally = true, helperFuncs = helpers).visit(tree)
     else REPLVisitor(mainFun, helperFuncs = helpers).visit(tree)
 }
 
-private fun listBindings() {
-    if (funStore.isEmpty()) {
-        println("No functions have been bound.")
-    } else {
-        println("Functions:")
-        for (f in funStore) {
-            var params = ""
-            f.paramTypes.forEachIndexed { index, type ->
-                params += if (index == 0) typeNameMap[type]?.type else ", ${typeNameMap[type]?.type}"
-            }
-            println("${f.name}($params): ${typeNameMap[f.returnType]?.type}")
-        }
-    }
-}
+// private fun listBindings() {
+//     if (funStore.isEmpty()) {
+//         println("No functions have been bound.")
+//     } else {
+//         println("Functions:")
+//         for (f in funStore) {
+//             var params = ""
+//             f.paramTypes.forEachIndexed { index, type ->
+//                 params += if (index == 0) typeNameMap[type]?.type else ", ${typeNameMap[type]?.type}"
+//             }
+//             println("${f.name}($params): ${typeNameMap[f.returnType]?.type}")
+//         }
+//     }
+// }
 
 @ExperimentalUnsignedTypes
 private fun runREPL(helpers: Boolean = true) {
@@ -155,7 +162,7 @@ private fun runREPL(helpers: Boolean = true) {
                 return
             }
             if (line.toLowerCase().contains("list")) {
-                listBindings()
+                // listBindings()
                 continue
             }
         } else runNovlangue(StringReader(line), helpers = helpers)

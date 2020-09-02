@@ -2,7 +2,7 @@
 package net.bms.novlangue.tree
 
 import NovlangueParser
-import me.tomassetti.kllvm.ComparisonType
+import org.bytedeco.llvm.global.LLVM
 
 /**
  * AST Node
@@ -187,10 +187,12 @@ class ConditionalNode : Node() {
  *
  * @property list list of lines to run.
  * @property returnExpr value to return.
+ * @property returnType return type.
  */
 class BodyNode : Node() {
     val list: ArrayList<NovlangueParser.TopContext> = ArrayList()
     var returnExpr: NovlangueParser.EContext? = null
+    var returnType: ValTypes = ValTypes.INT
 }
 
 /**
@@ -203,5 +205,5 @@ class BodyNode : Node() {
 class CompNode : Node() {
     var left: ValNode = ValNode()
     var right: ValNode = ValNode()
-    var type: ComparisonType = ComparisonType.IntEqual
+    var type: Int = LLVM.LLVMIntEQ
 }

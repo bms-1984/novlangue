@@ -1,10 +1,9 @@
 /* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue.tree
 
-import me.tomassetti.kllvm.BlockBuilder
-import me.tomassetti.kllvm.FunctionBuilder
-import me.tomassetti.kllvm.IfInstruction
-import me.tomassetti.kllvm.JumpInstruction
+import net.bms.novlangue.builder
+import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
+import org.bytedeco.llvm.LLVM.LLVMValueRef
 
 /**
  * Visitor for whiles and ifs
@@ -16,43 +15,20 @@ import me.tomassetti.kllvm.JumpInstruction
  * @property falseBlock jump here if false
  */
 class ConditionalVisitor(
-    private val func: FunctionBuilder,
-    private val entryBlock: BlockBuilder,
-    private var exitBlock: BlockBuilder,
-    private val trueBlock: BlockBuilder,
-    private val falseBlock: BlockBuilder,
-) : IRVisitor(func, entryBlock) {
-    internal fun visit(trueBody: BodyNode, falseBody: BodyNode?, comp: CompNode, chain: ArrayList<ConditionalNode>) {
-        entryBlock.addInstruction(IfInstruction(visit(comp), trueBlock, falseBlock))
-        block = trueBlock
-        visitBlock(trueBody)
-        trueBlock.addInstruction(JumpInstruction(exitBlock.label()))
+    private val func: LLVMValueRef,
+    private val entryBlock: LLVMBasicBlockRef,
+    private var exitBlock: LLVMBasicBlockRef,
+    private val trueBlock: LLVMBasicBlockRef,
+    private val falseBlock: LLVMBasicBlockRef,
+) : IRVisitor(func, builder, entryBlock) {
+    internal fun visit(
+        trueBody: BodyNode,
+        falseBody: BodyNode?,
+        comp: CompNode,
+        chain: ArrayList<ConditionalNode>
+    ): LLVMValueRef = TODO()
 
-        if (chain.isNotEmpty()) {
-            chain[0].chain = chain.filterIndexed { index, _ -> index != 0 } as ArrayList<ConditionalNode>
-            if (chain.size == 1) chain[0].chain.clear()
-            chain[0].`false` = falseBody
-            block = falseBlock
-            IRVisitor(func, block, exitBlock = exitBlock).visit(chain[0])
-        } else {
-            val falseBodyFixed = falseBody ?: BodyNode()
-            block = falseBlock
-            visitBlock(falseBodyFixed)
-            falseBlock.addInstruction(JumpInstruction(exitBlock.label()))
-        }
-    }
+    internal fun visitLoop(trueBody: BodyNode, comp: CompNode): LLVMValueRef = TODO()
 
-    internal fun visitLoop(trueBody: BodyNode, comp: CompNode) {
-        val testBlock = func.createBlock(getUniqueID("CONDITIONAL_TEST"))
-        entryBlock.addInstruction(JumpInstruction(testBlock.label()))
-        testBlock.addInstruction(IfInstruction(IRVisitor(func, testBlock).visit(comp), trueBlock, exitBlock))
-        block = trueBlock
-        visitBlock(trueBody)
-        block.addInstruction(JumpInstruction(testBlock.label()))
-    }
-
-    private fun visitBlock(node: BodyNode) {
-        if (node.list.isNotEmpty())
-            node.list.forEach { visit(CodeVisitor().visitTop(it)) }
-    }
+    private fun visitBlock(node: BodyNode): LLVMValueRef = TODO()
 }

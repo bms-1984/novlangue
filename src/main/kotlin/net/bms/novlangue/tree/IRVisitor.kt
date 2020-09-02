@@ -1,42 +1,12 @@
 /* (C) Ben M. Sutter 2020 */
 package net.bms.novlangue.tree
 
-import me.tomassetti.kllvm.BlockBuilder
-import me.tomassetti.kllvm.Call
-import me.tomassetti.kllvm.DoubleConst
-import me.tomassetti.kllvm.DoubleType
-import me.tomassetti.kllvm.FloatAddition
-import me.tomassetti.kllvm.FloatComparison
-import me.tomassetti.kllvm.FloatDivision
-import me.tomassetti.kllvm.FloatMultiplication
-import me.tomassetti.kllvm.FloatRemainder
-import me.tomassetti.kllvm.FloatSubtraction
-import me.tomassetti.kllvm.FunctionBuilder
-import me.tomassetti.kllvm.I32Type
-import me.tomassetti.kllvm.I8Type
-import me.tomassetti.kllvm.IntAddition
-import me.tomassetti.kllvm.IntComparison
-import me.tomassetti.kllvm.IntConst
-import me.tomassetti.kllvm.IntMultiplication
-import me.tomassetti.kllvm.IntRemainder
-import me.tomassetti.kllvm.IntSubtraction
-import me.tomassetti.kllvm.Load
-import me.tomassetti.kllvm.LocalVariable
-import me.tomassetti.kllvm.Null
-import me.tomassetti.kllvm.Pointer
-import me.tomassetti.kllvm.Printf
-import me.tomassetti.kllvm.Return
-import me.tomassetti.kllvm.ReturnInt
-import me.tomassetti.kllvm.SignedIntDivision
-import me.tomassetti.kllvm.Type
-import me.tomassetti.kllvm.Value
-import me.tomassetti.kllvm.VoidType
-import net.bms.novlangue.funStore
-import net.bms.novlangue.funValStore
 import net.bms.novlangue.mainFun
-import net.bms.novlangue.module
-import net.bms.novlangue.typeNameMap
-import net.bms.novlangue.valStore
+import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
+import org.bytedeco.llvm.LLVM.LLVMBuilderRef
+import org.bytedeco.llvm.LLVM.LLVMTypeRef
+import org.bytedeco.llvm.LLVM.LLVMValueRef
+import org.bytedeco.llvm.global.LLVM
 
 /**
  * Translator from AST to LLVM IR
@@ -50,14 +20,15 @@ import net.bms.novlangue.valStore
  * @property helperFuncs should builtin functions be defined.
  */
 open class IRVisitor(
-    private val func: FunctionBuilder,
-    var block: BlockBuilder = func.entryBlock(),
+    private val func: LLVMValueRef,
+    private val builder: LLVMBuilderRef,
+    var block: LLVMBasicBlockRef = LLVM.LLVMGetEntryBasicBlock(func),
     private val finally: Boolean = false,
     private val helperFuncs: Boolean = (func == mainFun && finally),
-    private val exitBlock: BlockBuilder? = null
+    private val exitBlock: LLVMBasicBlockRef? = null,
+    private var tempIndex: Int = 0
 ) {
-
-    internal open fun visit(node: Node?): Value = when (node) {
+    internal open fun visit(node: Node?): LLVMValueRef = when (node) {
         is AdditionNode -> visit(node)
         is SubtractionNode -> visit(node)
         is MultiplicationNode -> visit(node)
@@ -73,8 +44,13 @@ open class IRVisitor(
         is MasterNode -> visit(node)
         is BodyNode -> visit(node)
         is StringNode -> visit(node)
-        else -> Null(VoidType)
+        else -> LLVM.LLVMConstNull(LLVM.LLVMVoidType())
     }
+
+    /**
+     * Return a temporary index
+     */
+    private fun getTempIndex(): Int = tempIndex++
 
     /**
      * Returns a unique label
@@ -82,250 +58,100 @@ open class IRVisitor(
      * @param title optional custom string to insert into label.
      */
     fun getUniqueID(title: String = ""): String =
-        if (title.isEmpty()) "_INTERNAL_${func.name}_${func.tmpIndex()}"
-        else "_INTERNAL_${func.name.toUpperCase()}_${title.toUpperCase()}_${func.tmpIndex()}"
+        if (title.isEmpty()) "_INTERNAL_${LLVM.LLVMGetValueName(func)}_${getTempIndex()}".toUpperCase()
+        else "_INTERNAL_${LLVM.LLVMGetValueName(func)}_${title}_${getTempIndex()}".toUpperCase()
 
-    private fun mangleFunName(name: String, vararg types: Type = arrayOf()): String {
+    private fun mangleFunName(name: String, vararg types: LLVMTypeRef = arrayOf()): String {
         var ret = name
-        types.forEach { ret += "_${it.IRCode().filter { c -> c.isLetterOrDigit() }}" }
+        types.forEach { ret += "_${LLVM.LLVMPrintTypeToString(it).toString().filter { c -> c.isLetterOrDigit() }}" }
         return ret.toUpperCase()
     }
 
-    internal open fun visit(node: BodyNode): Value {
+    internal open fun visit(node: BodyNode): LLVMValueRef {
         node.list.forEach { visit(CodeVisitor().visit(it)) }
         if (node.returnExpr != null)
-            block.addInstruction(Return(visit(CodeVisitor().visit(node.returnExpr))))
+            LLVM.LLVMInsertIntoBuilder(
+                builder,
+                LLVM.LLVMBuildRet(builder, visit(CodeVisitor().visit(node.returnExpr)))
+            )
         else
-            block.addInstruction(
-                Return(
-                    when (func.returnType) {
-                        DoubleType -> DoubleConst(0.0, func.returnType)
-                        else -> IntConst(0, func.returnType)
+            LLVM.LLVMInsertIntoBuilder(
+                builder,
+                LLVM.LLVMBuildRet(
+                    builder,
+                    when (node.returnType) {
+                        ValTypes.DOUBLE -> LLVM.LLVMConstReal(LLVM.LLVMDoubleType(), 0.0)
+                        else -> LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), 0, 0)
                     }
                 )
             )
 
-        return Null()
+        return LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), 0, 0)
     }
 
-    internal open fun visit(node: MasterNode): Value {
-        if (helperFuncs) {
-            val printInt = module.createFunction(
-                mangleFunName("print", I32Type),
-                I32Type,
-                listOf(I32Type)
-            )
-            funStore += printInt
-            val variableInt = printInt.entryBlock().addVariable(I32Type, "x")
-            printInt.entryBlock().assignVariable(variableInt, printInt.paramReference(0))
-            funValStore += hashMapOf(printInt to arrayListOf("x" to printInt.paramTypes.first()))
-            printInt.addInstruction(
-                Printf(
-                    printInt.stringConstForContent("%d\n").reference(),
-                    printInt.paramReference(0)
-                )
-            )
-            printInt.addInstruction(ReturnInt(0))
-
-            val printDouble = module.createFunction(
-                mangleFunName("print", DoubleType),
-                I32Type,
-                listOf(DoubleType)
-            )
-            funStore += printDouble
-            val variableDouble = printDouble.entryBlock().addVariable(DoubleType, "x")
-            printDouble.entryBlock().assignVariable(variableDouble, printDouble.paramReference(0))
-            funValStore += hashMapOf(printDouble to arrayListOf("x" to printDouble.paramTypes.first()))
-            printDouble.addInstruction(
-                Printf(
-                    printDouble.stringConstForContent("%f\n").reference(),
-                    printDouble.paramReference(0)
-                )
-            )
-            printDouble.addInstruction(ReturnInt(0))
-
-            val printString = module.createFunction(
-                mangleFunName("print", Pointer(I8Type)),
-                I32Type,
-                listOf(Pointer(I8Type))
-            )
-            funStore += printString
-            val variableString = printString.entryBlock().addVariable(Pointer(I8Type), "x")
-            printString.entryBlock().assignVariable(variableString, printString.paramReference(0))
-            funValStore += hashMapOf(printString to arrayListOf("x" to printString.paramTypes.first()))
-            printString.addInstruction(
-                Printf(
-                    printString.stringConstForContent("%s\n").reference(),
-                    printString.paramReference(0)
-                )
-            )
-            printString.addInstruction(ReturnInt(0))
+    internal open fun visit(node: MasterNode): LLVMValueRef {
+        node.prog.forEach {
+            if (it is InfixExpressionNode) LLVM.LLVMInsertIntoBuilder(builder, visit(it))
+            else visit(it)
         }
-        node.prog.forEach { visit(it) }
-        if (finally) block.addInstruction(ReturnInt(0))
-
-        return Null()
-    }
-
-    internal open fun visit(node: ConditionalNode): Value {
-        val trueBlock = func.createBlock(getUniqueID("conditional_true"))
-        val exitBlock = exitBlock ?: func.createBlock(getUniqueID("conditional_exit"))
-
-        if (node.isLoop)
-            ConditionalVisitor(func, block, exitBlock, trueBlock, exitBlock).visitLoop(node.`true`, node.comp)
-        else {
-            val falseBlock = func.createBlock(getUniqueID("conditional_false"))
-            ConditionalVisitor(func, block, exitBlock, trueBlock, falseBlock).visit(
-                node.`true`,
-                node.`false`,
-                node.comp,
-                node.chain
+        if (finally) LLVM.LLVMInsertIntoBuilder(
+            builder,
+            LLVM.LLVMBuildRet(
+                builder,
+                LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), 0, 0)
             )
-        }
+        )
 
-        block = exitBlock
-
-        return Null()
+        return LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), 0, 0)
     }
 
-    internal open fun visit(node: CompNode): Value = when (node.left.type) {
-        ValTypes.DOUBLE -> block.tempValue(FloatComparison(node.type, visit(node.left), visit(node.right))).reference()
-        else -> block.tempValue(IntComparison(node.type, visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: ConditionalNode): LLVMValueRef = TODO()
+
+    internal open fun visit(node: CompNode): LLVMValueRef = when (node.left.type) {
+        ValTypes.DOUBLE -> LLVM.LLVMBuildFCmp(builder, node.type, visit(node.left), visit(node.right), getUniqueID())
+        else -> LLVM.LLVMBuildICmp(builder, node.type, visit(node.left), visit(node.right), getUniqueID())
     }
 
-    internal open fun visit(node: AdditionNode): Value = when (node.left.toValNode().type) {
-        ValTypes.DOUBLE -> block.tempValue(FloatAddition(visit(node.left), visit(node.right))).reference()
-        else -> block.tempValue(IntAddition(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: AdditionNode): LLVMValueRef = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> LLVM.LLVMBuildFAdd(builder, visit(node.left), visit(node.right), "add")
+        else -> LLVM.LLVMBuildAdd(builder, visit(node.left), visit(node.right), "add")
     }
 
-    internal open fun visit(node: SubtractionNode): Value = when (node.left.toValNode().type) {
-        ValTypes.DOUBLE -> block.tempValue(FloatSubtraction(visit(node.left), visit(node.right))).reference()
-        else -> block.tempValue(IntSubtraction(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: SubtractionNode): LLVMValueRef = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> LLVM.LLVMBuildFSub(builder, visit(node.left), visit(node.right), "sub")
+        else -> LLVM.LLVMBuildSub(builder, visit(node.left), visit(node.right), "sub")
     }
 
-    internal open fun visit(node: MultiplicationNode): Value = when (node.left.toValNode().type) {
-        ValTypes.DOUBLE -> block.tempValue(FloatMultiplication(visit(node.left), visit(node.right))).reference()
-        else -> block.tempValue(IntMultiplication(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: MultiplicationNode): LLVMValueRef = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> LLVM.LLVMBuildFMul(builder, visit(node.left), visit(node.right), "mul")
+        else -> LLVM.LLVMBuildMul(builder, visit(node.left), visit(node.right), "mul")
     }
 
-    internal open fun visit(node: DivisionNode): Value = when (node.left.toValNode().type) {
-        ValTypes.DOUBLE -> block.tempValue(FloatDivision(visit(node.left), visit(node.right))).reference()
-        else -> block.tempValue(SignedIntDivision(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: DivisionNode): LLVMValueRef = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> LLVM.LLVMBuildFDiv(builder, visit(node.left), visit(node.right), "div")
+        else -> LLVM.LLVMBuildSDiv(builder, visit(node.left), visit(node.right), "div")
     }
 
-    internal open fun visit(node: ModuloNode): Value = when (node.left.toValNode().type) {
-        ValTypes.DOUBLE -> block.tempValue(FloatRemainder(visit(node.left), visit(node.right))).reference()
-        else -> block.tempValue(IntRemainder(visit(node.left), visit(node.right))).reference()
+    internal open fun visit(node: ModuloNode): LLVMValueRef = when (node.left.toValNode().type) {
+        ValTypes.DOUBLE -> LLVM.LLVMBuildFRem(builder, visit(node.left), visit(node.right), "mod")
+        else -> LLVM.LLVMBuildSRem(builder, visit(node.left), visit(node.right), "mod")
     }
 
-    internal open fun visit(node: NegateNode): Value = when (node.innerNode.toValNode().type) {
-        ValTypes.DOUBLE -> DoubleConst(-(visit(node.innerNode) as DoubleConst).value)
-        else -> IntConst(-(visit(node.innerNode) as IntConst).value, I32Type)
+    internal open fun visit(node: NegateNode): LLVMValueRef = when (node.innerNode.toValNode().type) {
+        ValTypes.DOUBLE -> LLVM.LLVMBuildFNeg(builder, visit(node.innerNode), "neg")
+        else -> LLVM.LLVMBuildNeg(builder, visit(node.innerNode), "neg")
     }
 
-    internal open fun visit(node: NumberNode): Value = when (node.type) {
-        ValTypes.DOUBLE -> DoubleConst(node.value)
-        else -> IntConst(node.value.toInt(), I32Type)
+    internal open fun visit(node: NumberNode): LLVMValueRef = when (node.type) {
+        ValTypes.DOUBLE -> LLVM.LLVMConstReal(LLVM.LLVMDoubleType(), node.value)
+        else -> LLVM.LLVMConstInt(LLVM.LLVMInt32Type(), node.value.toLong(), 0)
     }
 
-    private fun visit(node: StringNode): Value = block.stringConstForContent(node.str).reference()
+    private fun visit(node: StringNode): LLVMValueRef = TODO()
 
-    internal open fun visit(node: ValNode): Value {
-        if (node.id.isEmpty()) return visit(node.value)
-        else if (node.value != null && node.isNew) {
-            if (valStore.any { it.name == node.id })
-                println("\tWARNING: Variable ${node.id} already exists. You should not use `val` here.")
-            valStore += when (node.type) {
-                ValTypes.INT -> block.addVariable(I32Type, node.id) as LocalVariable
-                ValTypes.DOUBLE -> block.addVariable(DoubleType, node.id) as LocalVariable
-                ValTypes.STRING -> block.addVariable(Pointer(I8Type), node.id) as LocalVariable
-            }
-            block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
-            return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
-        } else if (node.value != null && !node.isNew) {
-            if (!valStore.any { it.name == node.id }) {
-                println("\tERROR: The variable ${node.id} does not exist. Try using `val`.")
-                return Null()
-            }
-            block.assignVariable(valStore.find { it.name == node.id }!!, visit(node.value))
-            return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
-        } else if (func in funValStore && funValStore[func]?.any { it.first == node.id }!!) {
-            val index = funValStore[func]?.indexOf(
-                funValStore[func]?.find {
-                    it.first == node.id
-                }
-            )
-            return index?.let { func.paramReference(it) }!!
-        } else if (valStore.any { it.name == node.id })
-            return block.tempValue(Load(valStore.find { it.name == node.id }!!.reference())).reference()
-        else {
-            println("\tERROR: The variable ${node.id} does not exist.")
-            return Null()
-        }
-    }
+    internal open fun visit(node: ValNode): LLVMValueRef = TODO()
 
-    internal open fun visit(node: FunCallNode): Value {
-        val args = Array(node.args.size) { visit(node.args[it]) }
-        val name = mangleFunName(node.`fun`, *args.map { it.type() }.toTypedArray())
+    internal open fun visit(node: FunCallNode): LLVMValueRef = TODO()
 
-        if (!funStore.any { it.name == name }) {
-            println("\tERROR: The function ${node.`fun`} does not exist.")
-
-            return Null()
-        }
-        args.forEachIndexed { index, value ->
-            val type = (funValStore[funStore.find { it.name == name }] ?: return Null())[index].second
-            if (type != value.type()) {
-                println(
-                    "\tERROR: Argument ${index + 1} of function ${node.`fun`} " +
-                        "should be of type ${typeNameMap[type]?.type}, " +
-                        "but supplied argument is of type ${typeNameMap[value.type()]?.type}."
-                )
-                return Null()
-            }
-        }
-
-        val inst = Call(funStore.find { it.name == name }!!.returnType, name, *args)
-        return block.tempValue(inst).reference()
-    }
-
-    internal open fun visit(node: FunDefNode): Value {
-        val names = Array(node.arg.size) { node.arg[it].id }
-        val list = List(node.arg.size) {
-            when (node.arg[it].type) {
-                ValTypes.INT -> I32Type
-                ValTypes.DOUBLE -> DoubleType
-                ValTypes.STRING -> Pointer(I8Type)
-            }
-        }
-        val name = mangleFunName(node.`fun`, *list.toTypedArray())
-
-        if (funStore.any { it.name == name }) {
-            println("\tERROR: The function ${node.`fun`} already exists.")
-            return Null()
-        }
-        val funct =
-            when (node.returnType) {
-                ValTypes.INT -> module.createFunction(name, I32Type, list)
-                ValTypes.DOUBLE -> module.createFunction(name, DoubleType, list)
-                ValTypes.STRING -> module.createFunction(name, Pointer(I8Type), list)
-            }
-
-        funStore += funct
-        if (!funValStore.containsKey(funct)) funValStore[funct] = ArrayList()
-        names.forEachIndexed { index, s ->
-            val variable =
-                when (node.arg[index].type) {
-                    ValTypes.INT -> funct.entryBlock().addVariable(I32Type, s)
-                    ValTypes.DOUBLE -> funct.entryBlock().addVariable(DoubleType, s)
-                    ValTypes.STRING -> funct.entryBlock().addVariable(Pointer(I8Type), s)
-                }
-            funct.entryBlock().assignVariable(variable, funct.paramReference(index))
-            funValStore[funct]?.add(s to list[index])
-        }
-
-        IRVisitor(funct).visit(node.body)
-
-        return Null()
-    }
+    internal open fun visit(node: FunDefNode): LLVMValueRef = TODO()
 }

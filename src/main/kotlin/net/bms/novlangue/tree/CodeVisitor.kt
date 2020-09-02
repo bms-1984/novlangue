@@ -4,7 +4,7 @@ package net.bms.novlangue.tree
 import NovlangueBaseVisitor
 import NovlangueLexer
 import NovlangueParser
-import me.tomassetti.kllvm.ComparisonType
+import org.bytedeco.llvm.global.LLVM
 
 /**
  * Creates an AST from a the ANTLR parse tree
@@ -182,20 +182,20 @@ open class CodeVisitor : NovlangueBaseVisitor<Node>() {
             left = visit(ctx?.left).toValNode()
             right = visit(ctx?.right).toValNode()
             type = if (left.type == ValTypes.DOUBLE) when (ctx?.op?.text) {
-                "!=" -> ComparisonType.FloatNotEqual
-                ">" -> ComparisonType.FloatGreaterThan
-                "<" -> ComparisonType.FloatLessThan
-                ">=" -> ComparisonType.FloatGreaterThanOrEqual
-                "<=" -> ComparisonType.FloatLessThanOrEqual
-                else -> ComparisonType.FloatEqual
+                "!=" -> LLVM.LLVMRealONE
+                ">" -> LLVM.LLVMRealOGT
+                "<" -> LLVM.LLVMRealOLT
+                ">=" -> LLVM.LLVMRealOGE
+                "<=" -> LLVM.LLVMRealOLE
+                else -> LLVM.LLVMRealOEQ
             }
             else when (ctx?.op?.text) {
-                "!=" -> ComparisonType.IntNotEqual
-                ">" -> ComparisonType.IntGreaterThan
-                "<" -> ComparisonType.IntLessThan
-                ">=" -> ComparisonType.IntGreaterThanOrEqual
-                "<=" -> ComparisonType.IntLessThanOrEqual
-                else -> ComparisonType.IntEqual
+                "!=" -> LLVM.LLVMIntNE
+                ">" -> LLVM.LLVMIntSGT
+                "<" -> LLVM.LLVMIntSLT
+                ">=" -> LLVM.LLVMIntSGE
+                "<=" -> LLVM.LLVMIntSLE
+                else -> LLVM.LLVMIntEQ
             }
         }
 
