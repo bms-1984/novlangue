@@ -26,8 +26,8 @@ import org.bytedeco.llvm.LLVM.LLVMValueRef
  *
  * @property func passed to [IRVisitor]
  */
-class REPLVisitor(func: LLVMValueRef, helperFuncs: Boolean = false) :
-    IRVisitor(func, builder, helperFuncs = helperFuncs) {
+class REPLVisitor(func: LLVMValueRef) :
+    IRVisitor(func, builder) {
 
     override fun visit(node: Node?): LLVMValueRef = when (node) {
         is InfixExpressionNode -> visit(node)

@@ -151,24 +151,11 @@ fun runNovlangue(reader: Reader, compile: Boolean = false, helpers: Boolean = tr
             ),
             LLVM.LLVMExternalLinkage
         )
-    if (compile) IRVisitor(mainFun, builder, finally = true, helperFuncs = helpers).visit(tree)
-    else REPLVisitor(mainFun, helperFuncs = helpers).visit(tree)
+    if (compile) IRVisitor(func = mainFun, builder = builder, finally = true).visit(tree)
+    else REPLVisitor(func = mainFun).visit(tree)
 }
 
-// private fun listBindings() {
-//     if (funStore.isEmpty()) {
-//         println("No functions have been bound.")
-//     } else {
-//         println("Functions:")
-//         for (f in funStore) {
-//             var params = ""
-//             f.paramTypes.forEachIndexed { index, type ->
-//                 params += if (index == 0) typeNameMap[type]?.type else ", ${typeNameMap[type]?.type}"
-//             }
-//             println("${f.name}($params): ${typeNameMap[f.returnType]?.type}")
-//         }
-//     }
-// }
+private fun listBindings(): Nothing = TODO()
 
 @ExperimentalUnsignedTypes
 private fun runREPL(helpers: Boolean = true) {
@@ -187,7 +174,7 @@ private fun runREPL(helpers: Boolean = true) {
                 return
             }
             if (line.toLowerCase().contains("list")) {
-                // listBindings()
+                // TODO: listBindings not implemented
                 continue
             }
         } else runNovlangue(StringReader(line), helpers = helpers)
@@ -198,5 +185,5 @@ private fun getHelp() {
     println("Commands:")
     println(";help -- prints this help dialogue")
     println(";quit -- exits the REPL")
-    println(";list -- lists current bindings")
+    // println(";list -- lists current bindings")
 }
