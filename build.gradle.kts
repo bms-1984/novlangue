@@ -37,7 +37,7 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/bms-1984/novlangue")
             credentials {
-                username = System.getenv("bms-1984")
+                username = "bms-1984"
                 password = System.getenv("GHTOKEN")
             }
         }
