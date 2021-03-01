@@ -3,7 +3,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.4.0"
+    kotlin("jvm") version "1.4.31"
     id("org.jetbrains.dokka") version "1.4.0-rc"
     id("com.diffplug.spotless") version "5.3.0"
     application
