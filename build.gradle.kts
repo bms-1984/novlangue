@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "1.4.0"
     id("org.jetbrains.dokka") version "1.4.0-rc"
-    id("com.diffplug.spotless") version "5.3.0"
+    id("com.diffplug.spotless") version "5.11.0"
     application
     jacoco
     antlr
